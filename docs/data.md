@@ -26,14 +26,19 @@ output, merged across all per-benchmark invocations:
 
 ```
 arch,engine,engine_flags,wasm,process,iteration,phase,event,count
-x86_64,wasmtime,,spidermonkey/spidermonkey-json.wasm,4182,0,Compilation,virtual-cycles,123456
+x86_64,wasmtime,--target x86_64-unknown-linux-gnu ...,spidermonkey/spidermonkey-json.wasm,0,0,Compilation,virtual-cycles,123456
 ```
 
-`awfy run` fixes two columns so they are stable across runs:
+`awfy run` and `awfy record` fix three columns so they are stable across runs:
 
 * `engine` is always `wasmtime` (via `--name`), not a temp path.
 * `wasm` is relative to `sightglass/benchmarks/`, not absolute. (`awfy run`
   runs `sightglass-cli` from that directory with relative paths.)
+* `process` is the process index, `0` to `processes - 1`, not the OS pid,
+  which is noise.
+
+Rows are sorted by `wasm`, `process`, `iteration`, `phase`, `event`, and the
+gzip header has no file name or mtime, so the file is reproducible.
 
 `event` is each callgrind counter plus `virtual-cycles`.
 

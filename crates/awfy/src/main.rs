@@ -1,4 +1,5 @@
 use anyhow::Result;
+use awfy::metadata::Timestamp;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -42,7 +43,28 @@ enum Command {
         jobs: Option<usize>,
     },
     /// Write a new run directory from `awfy run`'s output.
-    Record,
+    ///
+    /// Prints the new run number, e.g. `00042`.
+    Record {
+        /// `awfy run`'s output directory.
+        #[arg(long)]
+        scratch: PathBuf,
+        /// Full SHA of the benchmarked Wasmtime commit.
+        #[arg(long)]
+        wasmtime_commit: String,
+        /// Its committer date, RFC 3339.
+        #[arg(long)]
+        wasmtime_commit_date: Timestamp,
+        /// When the run started, RFC 3339.
+        #[arg(long)]
+        started: Timestamp,
+        /// URL of the workflow run.
+        #[arg(long)]
+        workflow_run: Option<String>,
+        /// The suite passed to `awfy run --suite`, if any.
+        #[arg(long)]
+        suite: Option<String>,
+    },
     /// Compare a run with its baseline.
     Regressions,
     /// Generate the static site.
@@ -73,7 +95,24 @@ fn main() -> Result<()> {
                 },
             },
         ),
-        Command::Record => awfy::record::run(&cli.root),
+        Command::Record {
+            scratch,
+            wasmtime_commit,
+            wasmtime_commit_date,
+            started,
+            workflow_run,
+            suite,
+        } => awfy::record::run(
+            &cli.root,
+            awfy::record::Options {
+                scratch,
+                wasmtime_commit,
+                wasmtime_commit_date,
+                started,
+                workflow_run,
+                suite,
+            },
+        ),
         Command::Regressions => awfy::regressions::run(&cli.root),
         Command::Site => awfy::site::run(&cli.root),
     }

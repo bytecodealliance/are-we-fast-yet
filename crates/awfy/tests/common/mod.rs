@@ -60,3 +60,46 @@ pub fn awfy_ok(root: &Path, args: &[&str]) -> String {
     );
     String::from_utf8(out.stdout).unwrap()
 }
+
+/// `fake-sightglass-cli`, an example that `cargo test` builds next to `awfy`.
+/// (`cargo test --test run` alone does not; add `--examples`.)
+pub fn fake_sightglass_cli() -> PathBuf {
+    let awfy = Path::new(env!("CARGO_BIN_EXE_awfy"));
+    let fake = awfy.parent().unwrap().join("examples").join(format!(
+        "fake-sightglass-cli{}",
+        std::env::consts::EXE_SUFFIX
+    ));
+    assert!(fake.exists(), "{} was not built", fake.display());
+    fake
+}
+
+/// A repo root with the fixture `config.toml` and a `sightglass/benchmarks/`
+/// holding a suite of three (nonexistent) benchmarks.
+pub fn run_root() -> tempfile::TempDir {
+    let root = fixture_root();
+    let benchmarks = root.path().join("sightglass/benchmarks");
+    std::fs::create_dir_all(&benchmarks).unwrap();
+    std::fs::write(
+        benchmarks.join("default.suite"),
+        "# Three benchmarks.\na/benchmark.wasm\nb/benchmark.wasm\nc/c.wasm\n",
+    )
+    .unwrap();
+    root
+}
+
+pub fn run_fake(root: &Path, fail: &str) -> std::process::Output {
+    let engine = root.join("libengine.so");
+    std::fs::write(&engine, "").unwrap();
+    let out = root.join("scratch");
+    let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_awfy"));
+    cmd.arg("--root")
+        .arg(root)
+        .args(["run", "--jobs", "3", "--engine"])
+        .arg(&engine)
+        .arg("--sightglass-cli")
+        .arg(fake_sightglass_cli())
+        .arg("--out")
+        .arg(&out)
+        .env("FAKE_SIGHTGLASS_FAIL", fail);
+    cmd.output().unwrap()
+}
