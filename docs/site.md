@@ -8,7 +8,8 @@ library.
 
 `awfy site --out _site`:
 
-1. Copies `site/` to `_site/`.
+1. Copies `site/` to `_site/`, except development files (`package.json`,
+   `node_modules/`, `tests/`, ...). `--out` is removed first.
 2. Reads every non-excluded run in `benchmark-data/`.
 3. Writes the JSON below to `_site/data/`.
 
@@ -40,7 +41,13 @@ The data contract between Rust and JS. Golden-tested (see
 `fingerprint-change` is null, or a short description of what changed since the
 previous run (e.g. `"valgrind 3.22.0 -> 3.24.0"`).
 
-`data/benchmarks/<slug>.json`, one per benchmark plus Geomean:
+`benchmarks` lists Geomean first, then the rest sorted. `metrics` lists
+`virtual-cycles` first. `phases` is in lifecycle order.
+
+`data/benchmarks/<slug>.json`, one per benchmark plus Geomean. The slug drops
+`.wasm`, turns `/` into `-`, and any other character outside
+`[A-Za-z0-9._-]` into `_`, e.g. `bz2-benchmark`. Rust (`awfy::slug`) and JS
+(`site/js/slug.js`) share test cases.
 
 ```json
 {
@@ -62,8 +69,38 @@ Raw CSVs have no Geomean rows. `awfy site` computes them per run with
 with failed benchmarks has no Geomean point, since a geomean over a different
 benchmark set is not comparable with its neighbors.
 
+Means are integers when integral and otherwise rounded to 2 decimal places.
+
+`data/runs/<NNNNN>.json`, one per run, for `run.html`:
+
+```json
+{
+  "run": 3,
+  "previous": 2,
+  "fingerprint-change": null,
+  "metadata": { "schema": 1, "started": "2026-10-10T03:17:00Z", "...": "..." },
+  "changes": [
+    {
+      "benchmark": "bz2/benchmark.wasm",
+      "phase": "execution",
+      "mean": 2030000,
+      "previous": 2000000,
+      "change": 0.015
+    }
+  ]
+}
+```
+
+`previous` is the previous visible run. `metadata` is `metadata.toml` as
+JSON. `changes` has the virtual-cycles mean of every (benchmark, phase) in the
+run, Geomean first; `previous` and `change` (relative, `(mean - previous) /
+previous`) are null when the previous run lacks that benchmark.
+
 Size estimate: 14 metrics x 3 phases x 365 runs is about 15k points per
 benchmark per year, roughly 200 KiB of JSON before Pages' gzip.
+
+`generated` comes from `--now` or `SOURCE_DATE_EPOCH` when set, so tests get
+stable output.
 
 ## Pages
 

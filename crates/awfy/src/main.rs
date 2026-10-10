@@ -90,8 +90,19 @@ enum Command {
         #[arg(long)]
         run: RunNumber,
     },
-    /// Generate the static site.
-    Site,
+    /// Generate the static site: copy `site/` and write JSON to `data/`.
+    Site {
+        /// Output directory. Removed and recreated.
+        #[arg(long)]
+        out: PathBuf,
+        /// Static files to copy instead of `<root>/site`.
+        #[arg(long)]
+        site: Option<PathBuf>,
+        /// The `generated` timestamp, RFC 3339. Defaults to
+        /// `$SOURCE_DATE_EPOCH`, then the current time.
+        #[arg(long)]
+        now: Option<Timestamp>,
+    },
 }
 
 fn main() -> Result<()> {
@@ -154,6 +165,8 @@ fn main() -> Result<()> {
             println!("{}", awfy::issue::issue_key(run));
             Ok(())
         }
-        Command::Site => awfy::site::run(&cli.root),
+        Command::Site { out, site, now } => {
+            awfy::site::run(&cli.root, awfy::site::Options { out, site, now })
+        }
     }
 }

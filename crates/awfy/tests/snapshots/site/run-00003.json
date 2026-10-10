@@ -1,0 +1,98 @@
+{
+  "changes": [
+    {
+      "benchmark": "Geomean",
+      "change": -0.012655,
+      "mean": 1710131.67,
+      "phase": "compilation",
+      "previous": 1732051
+    },
+    {
+      "benchmark": "Geomean",
+      "change": 0,
+      "mean": 14142.33,
+      "phase": "instantiation",
+      "previous": 14142.33
+    },
+    {
+      "benchmark": "Geomean",
+      "change": 0.007472,
+      "mean": 1007472,
+      "phase": "execution",
+      "previous": 1000000
+    },
+    {
+      "benchmark": "bz2/benchmark.wasm",
+      "change": -0.03,
+      "mean": 970000,
+      "phase": "compilation",
+      "previous": 1000000
+    },
+    {
+      "benchmark": "bz2/benchmark.wasm",
+      "change": 0,
+      "mean": 10000,
+      "phase": "instantiation",
+      "previous": 10000
+    },
+    {
+      "benchmark": "bz2/benchmark.wasm",
+      "change": 0.015,
+      "mean": 2030000,
+      "phase": "execution",
+      "previous": 2000000
+    },
+    {
+      "benchmark": "pulldown-cmark/benchmark.wasm",
+      "change": 0.005,
+      "mean": 3015000,
+      "phase": "compilation",
+      "previous": 3000000
+    },
+    {
+      "benchmark": "pulldown-cmark/benchmark.wasm",
+      "change": 0,
+      "mean": 20000,
+      "phase": "instantiation",
+      "previous": 20000
+    },
+    {
+      "benchmark": "pulldown-cmark/benchmark.wasm",
+      "change": 0,
+      "mean": 500000,
+      "phase": "execution",
+      "previous": 500000
+    }
+  ],
+  "fingerprint-change": null,
+  "metadata": {
+    "are-we-fast-yet": {
+      "commit": "fedcba9876543210fedcba9876543210fedcba98",
+      "workflow-run": "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/103"
+    },
+    "config": {
+      "engine-flags": "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2",
+      "processes": 3
+    },
+    "environment": {
+      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
+      "uname": "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux",
+      "valgrind": "valgrind-3.22.0"
+    },
+    "failures": {},
+    "finished": "2026-10-03T04:21:12Z",
+    "schema": 1,
+    "sightglass": {
+      "commit": "e38856287c8871228d7ff843e29028c381a71dd7",
+      "suite": "benchmarks/default.suite"
+    },
+    "started": "2026-10-03T03:17:00Z",
+    "wasmtime": {
+      "commit": "3333333333333333333333333333333333333333",
+      "commit-date": "2026-10-03T01:41:05Z"
+    }
+  },
+  "previous": 2,
+  "run": 3
+}

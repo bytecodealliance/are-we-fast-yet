@@ -61,6 +61,8 @@ flag the host lacks, so the test fails on an unsupported runner.
   normalization, series lookup.
 * A Playwright test loads `awfy site` output from fixtures via a local static
   server and checks that each page renders a canvas, without console errors.
+  The fixture site is generated in test setup, not committed:
+  `awfy --root crates/awfy/tests/fixtures site --site site --out <dir>`.
   It also follows a link from a rendered regression issue snapshot to its
   benchmark page.
 
