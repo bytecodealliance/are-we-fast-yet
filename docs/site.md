@@ -24,6 +24,7 @@ The data contract between Rust and JS. Golden-tested (see
 {
   "schema": 1,
   "generated": "2026-10-10T04:30:00Z",
+  "repo": "bytecodealliance/are-we-fast-yet",
   "runs": [
     {
       "run": 42,
@@ -41,7 +42,8 @@ The data contract between Rust and JS. Golden-tested (see
 `fingerprint-change` is null, or a short description of what changed since the
 previous run (e.g. `"valgrind 3.22.0 -> 3.24.0"`).
 
-`benchmarks` lists Geomean first, then the rest sorted. `metrics` lists
+`repo` is `config.toml`'s `site.repo`, for links to raw data. `benchmarks`
+lists Geomean first, then the rest sorted. `metrics` lists
 `virtual-cycles` first. `phases` is in lifecycle order.
 
 `data/benchmarks/<slug>.json`, one per benchmark plus Geomean. The slug drops
@@ -123,6 +125,14 @@ regression issues.
 * Vertical marker at each fingerprint change, labeled with the change.
 * Hover: value, run, Wasmtime short SHA. Click: opens `run.html` for that run.
 * Drag to zoom on x; the range is kept in the URL.
+
+## Code
+
+`site/js/` holds ES modules. Pure logic (`state.js`, `data.js`,
+`transform.js`, `slug.js`) is separate from DOM and uPlot code (`plot.js`,
+`page.js`, and one `*-page.js` per page), so it is tested with `node --test`.
+`site/package.json` holds dev dependencies only (Playwright); nothing deployed
+uses `node_modules`.
 
 ## Charting library
 

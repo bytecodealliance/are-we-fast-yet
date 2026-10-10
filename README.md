@@ -15,3 +15,25 @@ cargo test
 ```
 
 The CLI is `awfy`; run `cargo run -p awfy -- --help` for its subcommands.
+
+## View the site locally
+
+```sh
+cargo run -p awfy -- site --out _site
+node site/tests/e2e/serve.js _site 8000   # or any static file server
+```
+
+Then open <http://127.0.0.1:8000/>. With no runs recorded yet, use the test
+fixtures instead:
+
+```sh
+cargo run -p awfy -- --root crates/awfy/tests/fixtures site --site site --out _site
+```
+
+## Site tests
+
+```sh
+cd site
+node --test tests/unit
+npm install && npx playwright install chromium && npx playwright test
+```

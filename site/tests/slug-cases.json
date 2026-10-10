@@ -1,0 +1,8 @@
+[
+  ["bz2/benchmark.wasm", "bz2-benchmark"],
+  ["shootout/shootout-sieve.wasm", "shootout-shootout-sieve"],
+  ["Geomean", "Geomean"],
+  ["a b/c+d.wasm", "a_b-c_d"],
+  ["x.wasm.wasm", "x.wasm"],
+  ["café/😀.wasm", "caf_-_"]
+]

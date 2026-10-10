@@ -78,6 +78,6 @@ fn site_writes_static_files_and_json() {
     );
     let index = std::fs::read_to_string(out.join("data/index.json")).unwrap();
     assert!(
-        index.starts_with(r#"{"schema":1,"generated":"2026-10-10T04:30:00Z","runs":[{"run":1,"#)
+        index.starts_with(r#"{"schema":1,"generated":"2026-10-10T04:30:00Z","repo":"bytecodealliance/are-we-fast-yet","runs":[{"run":1,"#)
     );
 }

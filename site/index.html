@@ -1,4 +1,26 @@
 <!doctype html>
+<html lang="en">
+<head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Are we fast yet?</title>
-<p>Placeholder. The UI reads <code>data/index.json</code>.
+<link rel="stylesheet" href="vendor/uplot/uPlot.min.css">
+<link rel="stylesheet" href="style.css">
+<script src="vendor/uplot/uPlot.iife.min.js"></script>
+<script type="module" src="js/index-page.js"></script>
+</head>
+<body>
+<header>
+  <h1><a href="./">Are we fast yet?</a></h1>
+  <span class="muted">Wasmtime and Cranelift under Sightglass and callgrind</span>
+</header>
+<div id="messages"></div>
+<main>
+  <div class="controls" id="controls"></div>
+  <h2>Geomean</h2>
+  <div class="plot" id="geomean"></div>
+  <h2>Benchmarks</h2>
+  <div class="grid" id="grid"></div>
+</main>
+</body>
+</html>

@@ -15,6 +15,7 @@
     "instantiation",
     "execution"
   ],
+  "repo": "bytecodealliance/are-we-fast-yet",
   "runs": [
     {
       "date": "2026-10-01T01:41:05Z",

@@ -21,17 +21,16 @@ pub fn slug(benchmark: &str) -> String {
 mod tests {
     use super::*;
 
+    /// The cases `site/js/slug.js` is also tested against.
     #[test]
-    fn cases() {
-        for (benchmark, want) in [
-            ("bz2/benchmark.wasm", "bz2-benchmark"),
-            ("shootout/shootout-sieve.wasm", "shootout-shootout-sieve"),
-            ("Geomean", "Geomean"),
-            ("a b/c+d.wasm", "a_b-c_d"),
-            ("x.wasm.wasm", "x.wasm"),
-            ("caf\u{e9}/\u{1f600}.wasm", "caf_-_"),
-        ] {
-            assert_eq!(slug(benchmark), want, "{benchmark}");
+    fn shared_cases() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../site/tests/slug-cases.json");
+        let cases: Vec<(String, String)> =
+            serde_json::from_str(&std::fs::read_to_string(path).unwrap()).unwrap();
+        assert!(cases.len() > 3);
+        for (benchmark, want) in cases {
+            assert_eq!(slug(&benchmark), want, "{benchmark}");
         }
     }
 

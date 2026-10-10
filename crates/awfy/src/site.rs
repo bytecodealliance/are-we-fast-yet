@@ -38,6 +38,8 @@ const NOT_DEPLOYED: &[&str] = &[
 pub struct Index {
     pub schema: u32,
     pub generated: String,
+    /// `owner/name` of this repository, for links to raw data.
+    pub repo: String,
     pub runs: Vec<IndexRun>,
     pub benchmarks: Vec<String>,
     pub phases: Vec<String>,
@@ -137,10 +139,17 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
             Err(_) => Timestamp::now(),
         },
     };
-    build(&DataDir::new(root), &site, &options.out, now)
+    let config = crate::config::Config::load(root)?;
+    build(&DataDir::new(root), &config, &site, &options.out, now)
 }
 
-pub fn build(data: &DataDir, site: &Path, out: &Path, now: Timestamp) -> Result<()> {
+pub fn build(
+    data: &DataDir,
+    config: &crate::config::Config,
+    site: &Path,
+    out: &Path,
+    now: Timestamp,
+) -> Result<()> {
     if !site.is_dir() {
         bail!("site directory {} does not exist", site.display());
     }
@@ -153,7 +162,7 @@ pub fn build(data: &DataDir, site: &Path, out: &Path, now: Timestamp) -> Result<
     copy_dir(site, out, true)?;
 
     let runs = load(data)?;
-    let files = generate(&runs, now)?;
+    let files = generate(&runs, &config.site.repo, now)?;
     let mut bytes = 0;
     for (path, json) in &files {
         let path = out.join("data").join(path);
@@ -226,7 +235,7 @@ fn means(measurements: &[Measurement<'_>]) -> BTreeMap<(String, Phase, String), 
 }
 
 /// Every generated file, as a path under `data/` and its JSON.
-fn generate(runs: &[Run], now: Timestamp) -> Result<Vec<(PathBuf, String)>> {
+fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, String)>> {
     let mut benchmarks = BTreeSet::new();
     let mut phases = BTreeSet::new();
     let mut metrics = BTreeSet::new();
@@ -272,6 +281,7 @@ fn generate(runs: &[Run], now: Timestamp) -> Result<Vec<(PathBuf, String)>> {
     let index = Index {
         schema: SCHEMA,
         generated: now.to_string(),
+        repo: repo.to_string(),
         runs: runs
             .iter()
             .zip(&fingerprint_changes)
@@ -380,7 +390,7 @@ mod tests {
 
     fn files() -> BTreeMap<String, serde_json::Value> {
         let runs = load(&DataDir::new(&fixtures())).unwrap();
-        generate(&runs, now())
+        generate(&runs, "bytecodealliance/are-we-fast-yet", now())
             .unwrap()
             .into_iter()
             .map(|(p, json)| {
@@ -508,6 +518,6 @@ mod tests {
             run.means
                 .insert((b.into(), Phase::Execution, VIRTUAL_CYCLES.into()), 1.0);
         }
-        assert!(generate(&[run], now()).is_err());
+        assert!(generate(&[run], "a/b", now()).is_err());
     }
 }
