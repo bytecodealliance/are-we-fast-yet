@@ -155,8 +155,18 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
         }
         None => eprint!("{summary}"),
     }
-    if options.issue_dir.is_some() || options.wasmtime_repo.is_some() {
-        log::warn!("issue rendering is not implemented yet");
+    if let (Some(dir), Outcome::Compared(report)) = (&options.issue_dir, &outcome) {
+        let metadata = data.metadata(report.run)?;
+        let wrote = crate::issue::write(
+            dir,
+            report,
+            &metadata,
+            &config,
+            options.wasmtime_repo.as_deref(),
+        )?;
+        if wrote {
+            log::info!("wrote issue to {}", dir.display());
+        }
     }
     Ok(())
 }

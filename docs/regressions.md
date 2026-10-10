@@ -50,7 +50,19 @@ issue-repo = "bytecodealliance/wasmtime"
 Filed on `regressions.issue-repo` with the App token (see
 [tokens.md](tokens.md)).
 
-Title: `Performance regression in <short-old>..<short-new> (are-we-fast-yet run NNNNN)`
+Title: `Performance regression in <short-old>..<short-new> (are-we-fast-yet run NNNNN)`,
+with 12-character short SHAs. `awfy issue-key --run NNNNN` prints the
+suffix, which is the idempotency key.
+
+`awfy regressions --issue-dir <dir>` writes `title.txt` and `body.md` there
+when there are regressions, and nothing otherwise. Links use `config.toml`'s
+`[site]` table:
+
+```toml
+[site]
+base-url = "https://bytecodealliance.github.io/are-we-fast-yet/"
+repo = "bytecodealliance/are-we-fast-yet"
+```
 
 Body:
 
@@ -69,7 +81,8 @@ Body:
   50 commits.
 * How to reproduce locally: the exact commands to build both engines and run
   `sightglass-cli benchmark --measure callgrind` on the regressed benchmarks,
-  including the pinned `--engine-flags-common`.
+  including the pinned `--engine-flags-common` from the run's metadata. If
+  only the Geomean regressed, the whole suite.
 
 ### Commit log
 

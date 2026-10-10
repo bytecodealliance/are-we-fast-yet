@@ -85,6 +85,11 @@ enum Command {
         #[arg(long)]
         wasmtime_repo: Option<PathBuf>,
     },
+    /// Print the title suffix that identifies a run's regression issue.
+    IssueKey {
+        #[arg(long)]
+        run: RunNumber,
+    },
     /// Generate the static site.
     Site,
 }
@@ -145,6 +150,10 @@ fn main() -> Result<()> {
                 wasmtime_repo,
             },
         ),
+        Command::IssueKey { run } => {
+            println!("{}", awfy::issue::issue_key(run));
+            Ok(())
+        }
         Command::Site => awfy::site::run(&cli.root),
     }
 }

@@ -21,3 +21,9 @@ min-relative-change = 0.01
 # Repository regression issues are filed on. This repo during rollout, then
 # bytecodealliance/wasmtime. See docs/regressions.md.
 issue-repo = "bytecodealliance/are-we-fast-yet"
+
+[site]
+# Where `pages.yml` deploys the site. Regression issues link here.
+base-url = "https://bytecodealliance.github.io/are-we-fast-yet/"
+# This repository, for links to raw data on GitHub.
+repo = "bytecodealliance/are-we-fast-yet"

@@ -3,6 +3,7 @@
 
 pub mod config;
 pub mod fingerprint;
+pub mod issue;
 pub mod latest;
 pub mod metadata;
 pub mod record;
@@ -10,5 +11,6 @@ pub mod regressions;
 pub mod run;
 pub mod runs;
 pub mod site;
+pub mod slug;
 #[cfg(test)]
 mod snapshot;

@@ -37,7 +37,7 @@ Continuous Sightglass benchmarking for Wasmtime and Cranelift. Agreed scope:
 | `crates/awfy/` | Rust CLI: run benchmarks, record a run, detect regressions, generate site data. |
 | `sightglass/` | Git submodule. The single pin for Sightglass, used both as a Cargo path dependency and to build `sightglass-cli`. |
 | `site/` | Static HTML/CSS/JS for the UI. See [site.md](site.md). |
-| `config.toml` | Run configuration: suite, engine flags, process count, regression threshold. |
+| `config.toml` | Run configuration: suite, engine flags, process count, regression threshold, site URLs. |
 | `.github/workflows/` | `benchmark.yml`, `pages.yml`, `ci.yml`. See [workflows.md](workflows.md). |
 
 ## Data flow
@@ -77,6 +77,7 @@ docs/
 | `awfy run` | Run the suite under callgrind. Each (benchmark, process) pair is its own `sightglass-cli benchmark --processes 1` invocation, `nproc` at a time. |
 | `awfy record` | Merge per-benchmark CSVs, gzip, gather metadata, allocate the next run number, write the run directory. |
 | `awfy regressions` | Compare a run with its predecessor. Emit an issue title and body, or nothing. |
+| `awfy issue-key` | Print the title suffix that identifies a run's regression issue. |
 | `awfy site` | Copy `site/` and generate JSON summaries into an output directory. |
 
 `awfy` uses `sightglass-data` and `sightglass-analysis` from the submodule as

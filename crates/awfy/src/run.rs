@@ -345,6 +345,9 @@ mod tests {
             significance-level = 0.01
             min-relative-change = 0.01
             issue-repo = "a/b"
+            [site]
+            base-url = "https://example.com/"
+            repo = "a/b"
             "#,
         )
         .unwrap()

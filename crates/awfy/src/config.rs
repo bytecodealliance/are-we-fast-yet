@@ -9,6 +9,7 @@ use std::path::Path;
 pub struct Config {
     pub benchmark: Benchmark,
     pub regressions: Regressions,
+    pub site: Site,
 }
 
 #[derive(Clone, Debug, Deserialize, PartialEq)]
@@ -29,6 +30,15 @@ pub struct Regressions {
     pub min_relative_change: f64,
     /// `owner/name` of the repository regression issues are filed on.
     pub issue_repo: String,
+}
+
+#[derive(Clone, Debug, Deserialize, PartialEq)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Site {
+    /// Where the site is deployed, with a trailing `/`.
+    pub base_url: String,
+    /// `owner/name` of this repository, for links to raw data.
+    pub repo: String,
 }
 
 impl Config {
@@ -59,6 +69,7 @@ mod tests {
         );
         assert!(!config.benchmark.engine_flags.contains('\n'));
         assert!(!config.benchmark.engine_flags.contains("  "));
+        assert!(config.site.base_url.ends_with('/'));
     }
 
     #[test]
@@ -73,6 +84,9 @@ mod tests {
             significance-level = 0.01
             min-relative-change = 0.01
             issue-repo = "a/b"
+            [site]
+            base-url = "https://example.com/"
+            repo = "a/b"
         "#;
         assert!(toml::from_str::<Config>(text).is_err());
     }
