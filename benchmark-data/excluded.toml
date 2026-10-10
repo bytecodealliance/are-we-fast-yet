@@ -1,0 +1,5 @@
+# Runs to ignore in the UI and as regression baselines. See docs/data.md.
+#
+# [[excluded]]
+# run = 42
+# reason = "Valgrind upgrade mid-run; see #17"

@@ -1,0 +1,5 @@
+# Part of the environment fingerprint: this also builds Wasmtime in
+# `benchmark.yml`. Bump deliberately, in its own PR.
+[toolchain]
+channel = "1.99.0"
+components = ["rustfmt", "clippy"]

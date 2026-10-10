@@ -1,0 +1,8 @@
+# TODO: The pinned commit (8496b0f, which adds `sightglass_analysis::geomean`)
+# is only on fitzgen/sightglass's `geomean` branch until it merges upstream.
+# Until then, fetch it with:
+#   git -C sightglass fetch https://github.com/fitzgen/sightglass.git geomean
+# See plans/011-human-checklist.md.
+[submodule "sightglass"]
+	path = sightglass
+	url = https://github.com/bytecodealliance/sightglass.git
