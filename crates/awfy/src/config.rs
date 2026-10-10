@@ -51,9 +51,43 @@ impl Config {
     }
 }
 
+/// The scalar at a dotted key such as `regressions.issue-repo`, as a string.
+pub fn get(root: &Path, key: &str) -> Result<String> {
+    // Validate the whole file first.
+    Config::load(root)?;
+    let text = std::fs::read_to_string(root.join("config.toml"))?;
+    let mut value = toml::Value::Table(text.parse()?);
+    for part in key.split('.') {
+        value = match value {
+            toml::Value::Table(mut t) => t.remove(part),
+            _ => None,
+        }
+        .with_context(|| format!("unknown config key `{key}`"))?;
+    }
+    match value {
+        toml::Value::String(s) => Ok(s),
+        toml::Value::Table(_) | toml::Value::Array(_) => {
+            anyhow::bail!("config key `{key}` is not a single value")
+        }
+        other => Ok(other.to_string()),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn get_keys() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures");
+        assert_eq!(
+            get(&root, "regressions.issue-repo").unwrap(),
+            "bytecodealliance/are-we-fast-yet"
+        );
+        assert_eq!(get(&root, "benchmark.processes").unwrap(), "3");
+        assert!(get(&root, "regressions").is_err());
+        assert!(get(&root, "regressions.nope").is_err());
+    }
 
     #[test]
     fn loads_repo_config() {

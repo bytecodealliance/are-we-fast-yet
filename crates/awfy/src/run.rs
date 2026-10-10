@@ -99,11 +99,14 @@ pub fn run_with(
     anyhow::ensure!(options.jobs > 0, "--jobs must be at least 1");
     let root = std::path::absolute(root)?;
     let benchmarks_dir = root.join("sightglass/benchmarks");
-    let suite = root.join("sightglass").join(
-        options
-            .suite
-            .as_deref()
-            .unwrap_or(config.benchmark.suite.as_ref()),
+    // Lexically, so `..` means the same even if `sightglass` is a symlink.
+    let suite = normalize(
+        &root.join("sightglass").join(
+            options
+                .suite
+                .as_deref()
+                .unwrap_or(config.benchmark.suite.as_ref()),
+        ),
     );
     let wasms = parse_suite(&suite, &benchmarks_dir)?;
     anyhow::ensure!(!wasms.is_empty(), "{} lists no benchmarks", suite.display());

@@ -73,6 +73,7 @@ docs/
 
 | Subcommand | Purpose |
 |------------|---------|
+| `awfy config <key>` | Print a `config.toml` value, so workflows don't parse TOML. |
 | `awfy latest <field>` | Print a field from the latest run's metadata, e.g. to skip runs when Wasmtime is unchanged. |
 | `awfy run` | Run the suite under callgrind. Each (benchmark, process) pair is its own `sightglass-cli benchmark --processes 1` invocation, `nproc` at a time. |
 | `awfy record` | Merge per-benchmark CSVs, gzip, gather metadata, allocate the next run number, write the run directory. |

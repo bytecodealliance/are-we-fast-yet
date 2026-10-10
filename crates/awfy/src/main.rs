@@ -18,6 +18,11 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Command {
+    /// Print a value from `config.toml`, e.g. `regressions.issue-repo`.
+    Config {
+        /// Dotted key.
+        key: String,
+    },
     /// Print a field from the latest run's metadata.
     ///
     /// Prints nothing if there are no runs.
@@ -118,6 +123,10 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
     match cli.command {
+        Command::Config { key } => {
+            println!("{}", awfy::config::get(&cli.root, &key)?);
+            Ok(())
+        }
         Command::Latest { field } => awfy::latest::run(&cli.root, &field),
         Command::Run {
             engine,

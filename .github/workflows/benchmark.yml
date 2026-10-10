@@ -1,0 +1,242 @@
+name: Benchmark
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: Run even if Wasmtime main is unchanged since the last run.
+        type: boolean
+        default: false
+      dry-run:
+        description: Upload the run and would-be issue as artifacts instead of pushing, filing, and deploying.
+        type: boolean
+        default: false
+      suite:
+        description: Suite to run instead of config.toml's, relative to sightglass/.
+        type: string
+        default: ""
+
+concurrency:
+  group: benchmark
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  WASMTIME_REPO: https://github.com/bytecodealliance/wasmtime
+
+jobs:
+  benchmark:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    permissions:
+      contents: write
+      # Regression issues go to this repo during rollout. See docs/tokens.md.
+      issues: write
+    outputs:
+      run: ${{ steps.record.outputs.run }}
+      skip: ${{ steps.check.outputs.skip }}
+    env:
+      DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
+      SUITE: ${{ inputs.suite }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            .
+            sightglass
+
+      # Only main may push data; test branches with dry-run.
+      - name: Check branch
+        if: env.DRY_RUN == 'false' && github.ref != 'refs/heads/main'
+        run: |
+          echo "::error::Non-dry runs must be on main, not $GITHUB_REF."
+          exit 1
+
+      - run: cargo build --release -p awfy
+
+      - name: Check for a new Wasmtime commit
+        id: check
+        env:
+          FORCE: ${{ inputs.force && 'true' || 'false' }}
+        run: |
+          sha=$(git ls-remote "$WASMTIME_REPO" refs/heads/main | cut -f1)
+          latest=$(target/release/awfy latest wasmtime.commit)
+          echo "wasmtime main is $sha; latest run measured ${latest:-nothing}"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          if [ "$sha" = "$latest" ] && [ "$FORCE" != true ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "Wasmtime \`$sha\` was already benchmarked; skipping." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Treeless: enough for the commit date and the issue's commit log.
+      - name: Clone Wasmtime
+        if: steps.check.outputs.skip == 'false'
+        id: wasmtime
+        env:
+          SHA: ${{ steps.check.outputs.sha }}
+        run: |
+          git clone --filter=tree:0 --no-checkout "$WASMTIME_REPO" "$RUNNER_TEMP/wasmtime"
+          echo "date=$(git -C "$RUNNER_TEMP/wasmtime" log -1 --format=%cI "$SHA")" >> "$GITHUB_OUTPUT"
+
+      - name: Install Valgrind
+        if: steps.check.outputs.skip == 'false'
+        run: sudo apt-get update && sudo apt-get install -y valgrind
+
+      # Sightglass's build script fetches into BUILD_DIR's existing clone and
+      # reuses its `target/`, so caching it makes daily builds incremental.
+      - name: Restore Wasmtime build
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/wasmtime-build
+          key: wasmtime-build-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ steps.check.outputs.sha }}
+          restore-keys: wasmtime-build-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Build engine
+        if: steps.check.outputs.skip == 'false'
+        env:
+          REVISION: ${{ steps.check.outputs.sha }}
+        run: |
+          # Build Wasmtime with this repo's pinned toolchain, not Wasmtime's.
+          RUSTUP_TOOLCHAIN=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+          export RUSTUP_TOOLCHAIN
+          export BUILD_DIR="$RUNNER_TEMP/wasmtime-build"
+          mkdir -p "$BUILD_DIR" "$RUNNER_TEMP/engine"
+          rustc sightglass/engines/wasmtime/build.rs -o "$RUNNER_TEMP/build-engine"
+          "$RUNNER_TEMP/build-engine" "$RUNNER_TEMP/engine"
+          # The build script ignores failing git commands, so make sure it
+          # built the right commit and not a stale cached one.
+          test "$(git -C "$BUILD_DIR" rev-parse HEAD)" = "$REVISION"
+          test -f "$RUNNER_TEMP/engine/libengine.so"
+
+      - name: Build sightglass-cli
+        if: steps.check.outputs.skip == 'false'
+        run: cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
+
+      - name: awfy run
+        if: steps.check.outputs.skip == 'false'
+        run: |
+          target/release/awfy run \
+            --engine "$RUNNER_TEMP/engine/libengine.so" \
+            --sightglass-cli sightglass/target/release/sightglass-cli \
+            --out "$RUNNER_TEMP/scratch" \
+            ${SUITE:+--suite "$SUITE"}
+
+      - name: awfy record
+        if: steps.check.outputs.skip == 'false'
+        id: record
+        env:
+          SHA: ${{ steps.check.outputs.sha }}
+          DATE: ${{ steps.wasmtime.outputs.date }}
+          STARTED: ${{ steps.check.outputs.started }}
+        run: |
+          run=$(target/release/awfy record \
+            --scratch "$RUNNER_TEMP/scratch" \
+            --wasmtime-commit "$SHA" \
+            --wasmtime-commit-date "$DATE" \
+            --started "$STARTED" \
+            --workflow-run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            ${SUITE:+--suite "$SUITE"})
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+
+      - name: Commit and push
+        if: steps.check.outputs.skip == 'false' && env.DRY_RUN == 'false'
+        env:
+          RUN: ${{ steps.record.outputs.run }}
+          SHA: ${{ steps.check.outputs.sha }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add "benchmark-data/$RUN"
+          git commit -m "Record run $RUN (wasmtime ${SHA:0:12})"
+          for attempt in 1 2 3; do
+            git push origin HEAD:main && exit 0
+            echo "push rejected (attempt $attempt); rebasing"
+            git pull --rebase origin main
+          done
+          exit 1
+
+      - name: awfy regressions
+        if: steps.check.outputs.skip == 'false'
+        id: regressions
+        env:
+          RUN: ${{ steps.record.outputs.run }}
+        run: |
+          target/release/awfy regressions --run "$RUN" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --issue-dir "$RUNNER_TEMP/issue" \
+            --wasmtime-repo "$RUNNER_TEMP/wasmtime"
+          if [ -f "$RUNNER_TEMP/issue/title.txt" ]; then
+            repo=$(target/release/awfy config regressions.issue-repo)
+            {
+              echo "found=true"
+              echo "repo=$repo"
+              echo "owner=${repo%%/*}"
+              echo "name=${repo#*/}"
+              echo "key=$(target/release/awfy issue-key --run "$RUN")"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload dry-run results
+        if: steps.check.outputs.skip == 'false' && env.DRY_RUN == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dry-run-${{ steps.record.outputs.run }}
+          path: |
+            benchmark-data/${{ steps.record.outputs.run }}
+            ${{ runner.temp }}/issue
+          if-no-files-found: error
+
+      # Only for issues outside this repo; GITHUB_TOKEN covers this one.
+      - name: Mint App token
+        if: steps.regressions.outputs.found == 'true' && env.DRY_RUN == 'false' && steps.regressions.outputs.repo != github.repository
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.AWFY_APP_ID }}
+          private-key: ${{ secrets.AWFY_APP_PRIVATE_KEY }}
+          owner: ${{ steps.regressions.outputs.owner }}
+          repositories: ${{ steps.regressions.outputs.name }}
+          permission-issues: write
+
+      - name: File issue
+        if: steps.regressions.outputs.found == 'true' && env.DRY_RUN == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ steps.regressions.outputs.repo }}
+          KEY: ${{ steps.regressions.outputs.key }}
+        run: |
+          # Idempotency: skip if a re-run already filed this run's issue.
+          existing=$(gh issue list --repo "$REPO" --state all --search "\"$KEY\" in:title" \
+            --json title,author \
+            --jq "map(select(.author.is_bot and (.title | endswith(\"$KEY\")))) | length")
+          if [ "$existing" != 0 ]; then
+            echo "An issue ending in $KEY already exists in $REPO."
+            exit 0
+          fi
+          gh issue create --repo "$REPO" \
+            --title "$(cat "$RUNNER_TEMP/issue/title.txt")" \
+            --body-file "$RUNNER_TEMP/issue/body.md"
+
+  pages:
+    needs: benchmark
+    if: needs.benchmark.outputs.skip == 'false' && !inputs.dry-run
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+    uses: ./.github/workflows/pages.yml
+    with:
+      ref: main
