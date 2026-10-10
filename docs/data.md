@@ -32,7 +32,8 @@ x86_64,wasmtime,,spidermonkey/spidermonkey-json.wasm,4182,0,Compilation,virtual-
 `awfy run` fixes two columns so they are stable across runs:
 
 * `engine` is always `wasmtime` (via `--name`), not a temp path.
-* `wasm` is relative to `sightglass/benchmarks/`, not absolute.
+* `wasm` is relative to `sightglass/benchmarks/`, not absolute. (`awfy run`
+  runs `sightglass-cli` from that directory with relative paths.)
 
 `event` is each callgrind counter plus `virtual-cycles`.
 

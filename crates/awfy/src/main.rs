@@ -24,7 +24,23 @@ enum Command {
         field: String,
     },
     /// Run the suite under callgrind.
-    Run,
+    Run {
+        /// Path to the Wasmtime `libengine.so`.
+        #[arg(long)]
+        engine: PathBuf,
+        /// Path to `sightglass-cli`.
+        #[arg(long, default_value = "sightglass-cli")]
+        sightglass_cli: PathBuf,
+        /// Scratch directory for per-unit CSVs. Must be empty or missing.
+        #[arg(long)]
+        out: PathBuf,
+        /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
+        #[arg(long)]
+        suite: Option<PathBuf>,
+        /// Units to run at once. Defaults to the available parallelism.
+        #[arg(long)]
+        jobs: Option<usize>,
+    },
     /// Write a new run directory from `awfy run`'s output.
     Record,
     /// Compare a run with its baseline.
@@ -38,7 +54,25 @@ fn main() -> Result<()> {
     let cli = Cli::parse();
     match cli.command {
         Command::Latest { field } => awfy::latest::run(&cli.root, &field),
-        Command::Run => awfy::run::run(&cli.root),
+        Command::Run {
+            engine,
+            sightglass_cli,
+            out,
+            suite,
+            jobs,
+        } => awfy::run::run(
+            &cli.root,
+            awfy::run::Options {
+                engine,
+                sightglass_cli,
+                out,
+                suite,
+                jobs: match jobs {
+                    Some(jobs) => jobs,
+                    None => std::thread::available_parallelism()?.get(),
+                },
+            },
+        ),
         Command::Record => awfy::record::run(&cli.root),
         Command::Regressions => awfy::regressions::run(&cli.root),
         Command::Site => awfy::site::run(&cli.root),

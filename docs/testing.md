@@ -35,9 +35,9 @@ Run the `awfy` binary end to end against a temp copy of the fixtures:
 
 * `awfy record` then `awfy regressions` then `awfy site`, asserting the
   resulting files and stdout.
-* `awfy run` with a fake `sightglass-cli` (a tiny script on `PATH` that writes
-  canned CSV), to test orchestration, parallelism, and failure handling without
-  Valgrind.
+* `awfy run` with a fake `sightglass-cli` (`examples/fake-sightglass-cli.rs`,
+  passed via `--sightglass-cli`, that writes canned CSV), to test
+  orchestration, parallelism, and failure handling without Valgrind.
 
 ## Real Sightglass smoke test (`ci.yml`, Linux only)
 
