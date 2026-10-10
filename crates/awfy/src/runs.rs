@@ -170,7 +170,16 @@ pub fn write_csv(measurements: &[Measurement<'_>], writer: impl std::io::Write) 
 
 /// Read a gzipped Sightglass raw CSV.
 pub fn read_csv_gz(path: &Path) -> Result<Vec<Measurement<'static>>> {
-    let file = std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    let mut file =
+        std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
+    // `GzDecoder` reads non-gzip input as empty rather than failing.
+    let mut magic = [0; 2];
+    std::io::Read::read_exact(&mut file, &mut magic)
+        .and_then(|()| std::io::Seek::rewind(&mut file))
+        .with_context(|| format!("reading {}", path.display()))?;
+    if magic != [0x1f, 0x8b] {
+        bail!("{} is not gzipped", path.display());
+    }
     read_csv(flate2::read::GzDecoder::new(file))
         .with_context(|| format!("reading {}", path.display()))
 }
@@ -270,6 +279,15 @@ mod tests {
             }]
         );
         assert_eq!(data.visible_runs().unwrap(), [RunNumber(1), RunNumber(3)]);
+    }
+
+    #[test]
+    fn rejects_non_gzip_csv() {
+        let tmp = tempfile::tempdir().unwrap();
+        let path = tmp.path().join(CSV);
+        std::fs::write(&path, "arch,engine\n").unwrap();
+        let err = read_csv_gz(&path).unwrap_err();
+        assert!(err.to_string().contains("is not gzipped"), "{err}");
     }
 
     #[test]

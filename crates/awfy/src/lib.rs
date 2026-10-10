@@ -5,6 +5,7 @@ pub mod config;
 pub mod fingerprint;
 pub mod issue;
 pub mod latest;
+pub mod lint;
 pub mod metadata;
 pub mod record;
 pub mod regressions;

@@ -20,6 +20,8 @@ pub struct Options {
     pub workflow_run: Option<String>,
     /// The suite `awfy run` used, if not `config.toml`'s.
     pub suite: Option<String>,
+    /// The processes `awfy run` used, if not `config.toml`'s.
+    pub processes: Option<u32>,
 }
 
 /// Everything `record` learns from outside the scratch directory. Faked in
@@ -140,7 +142,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn Probe) -> Result<RunNu
             cpu: probe.cpu(),
         },
         config: RunConfig {
-            processes: config.benchmark.processes,
+            processes: options.processes.unwrap_or(config.benchmark.processes),
             engine_flags: config.benchmark.engine_flags.clone(),
         },
         failures,
@@ -305,6 +307,7 @@ mod tests {
             started: "2026-10-10T03:17:00Z".parse().unwrap(),
             workflow_run: None,
             suite: None,
+            processes: None,
         }
     }
 

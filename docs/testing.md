@@ -46,9 +46,11 @@ Run the `awfy` binary end to end against a temp copy of the fixtures:
 ## Real Sightglass smoke test (`ci.yml`, Linux only)
 
 Builds `libengine.so` from a pinned Wasmtime release (cached, like Sightglass's
-own CI), then runs `awfy run` and `awfy record` on `benchmarks/noop` with one
-process under real Valgrind. Asserts the CSV has every callgrind event for
-every phase and that metadata fields are filled in. Catches Sightglass
+own CI), then runs `awfy run --processes 1` and `awfy record` on
+`benchmarks/noop` (`crates/awfy/tests/smoke.suite`) under real Valgrind. The
+ignored Rust test `crates/awfy/tests/smoke.rs` then asserts the CSV has every
+callgrind event (from Sightglass's `EVENT_MAPPINGS`) plus `virtual-cycles` for
+every phase, and that metadata fields are filled in. Catches Sightglass
 submodule bumps that change output format or event names.
 
 Uses the real `config.toml` engine flags, so it also checks that Valgrind on the
@@ -75,8 +77,11 @@ Triggers: `pull_request`, `push` to `main`.
 3. Real Sightglass smoke test.
 4. Site tests.
 5. `actionlint` on `.github/workflows/`.
-6. Data lint: every `benchmark-data/*/metadata.toml` parses and every CSV
-   decompresses and parses. Guards against bad hand edits.
+6. Data lint (`awfy lint-data`): every run directory holds exactly
+   `metadata.toml` and `sightglass.csv.gz`, both parse, and `excluded.toml`
+   names only existing runs. Guards against bad hand edits.
+
+Third-party actions are pinned to full commit SHAs with a version comment.
 
 ## Testing the workflows
 

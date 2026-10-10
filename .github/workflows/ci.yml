@@ -8,13 +8,106 @@ on:
 permissions:
   contents: read
 
+env:
+  CARGO_TERM_COLOR: always
+  # The Wasmtime release the smoke test benchmarks. Bump with the Sightglass
+  # submodule when the bench API changes.
+  WASMTIME_REVISION: v49.0.2
+
 jobs:
   rust:
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           submodules: recursive
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
       - run: cargo fmt --check
       - run: cargo clippy --all-targets -- -D warnings
       - run: cargo test
+
+  # Real Sightglass and Valgrind on one cheap benchmark. See docs/testing.md.
+  smoke:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+        with:
+          workspaces: |
+            .
+            sightglass
+      - run: sudo apt-get update && sudo apt-get install -y valgrind
+      - name: Restore engine
+        id: engine
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: target/smoke-engine
+          key: smoke-engine-${{ runner.os }}-${{ env.WASMTIME_REVISION }}-${{ hashFiles('rust-toolchain.toml', 'sightglass/engines/wasmtime/build.rs') }}
+      - name: Build engine
+        if: steps.engine.outputs.cache-hit != 'true'
+        run: |
+          mkdir -p target/smoke-engine
+          rustc sightglass/engines/wasmtime/build.rs -o target/build-engine
+          REVISION="$WASMTIME_REVISION" target/build-engine target/smoke-engine
+      - run: cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
+      - run: cargo build --release -p awfy
+      # Records into this checkout's benchmark-data/, which is thrown away.
+      - name: awfy run and record
+        run: |
+          now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+          target/release/awfy run --engine target/smoke-engine/libengine.so \
+            --sightglass-cli sightglass/target/release/sightglass-cli \
+            --suite ../crates/awfy/tests/smoke.suite --processes 1 --out target/smoke-scratch
+          target/release/awfy record --scratch target/smoke-scratch \
+            --wasmtime-commit "$WASMTIME_REVISION" --wasmtime-commit-date "$now" \
+            --started "$now" --suite ../crates/awfy/tests/smoke.suite --processes 1
+      - run: cargo test -p awfy --test smoke -- --ignored
+        env:
+          AWFY_SMOKE_ROOT: ${{ github.workspace }}
+
+  site:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: site
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 24
+      # TODO: commit site/package-lock.json and switch to `npm ci`.
+      # `@playwright/test` is pinned exactly and pins its own dependencies.
+      - run: npm install --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
+      - run: node --test tests/unit
+      # Builds the fixture site with `awfy site` in its global setup.
+      - run: npx playwright test
+
+  actionlint:
+    runs-on: ubuntu-24.04
+    env:
+      ACTIONLINT_VERSION: 1.7.12
+      ACTIONLINT_SHA256: 8aca8db96f1b94770f1b0d72b6dddcb1ebb8123cb3712530b08cc387b349a3d8
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Install actionlint
+        run: |
+          tarball="actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz"
+          curl -sSfLO "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/${tarball}"
+          echo "${ACTIONLINT_SHA256}  ${tarball}" | sha256sum -c -
+          tar xzf "$tarball" actionlint
+      - run: ./actionlint -color
+
+  data-lint:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+      - uses: Swatinem/rust-cache@6323deb102c322ba6fcbdcafc7e3dddab59af2b6 # v2.9.2
+      - run: cargo run --release -p awfy -- lint-data

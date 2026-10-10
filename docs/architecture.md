@@ -79,6 +79,7 @@ docs/
 | `awfy regressions` | Compare a run with its predecessor. Emit an issue title and body, or nothing. |
 | `awfy issue-key` | Print the title suffix that identifies a run's regression issue. |
 | `awfy site` | Copy `site/` and generate JSON summaries into an output directory. |
+| `awfy lint-data` | Check that every run directory and `excluded.toml` parse. Used by `ci.yml`. |
 
 `awfy` uses `sightglass-data` and `sightglass-analysis` from the submodule as
 path dependencies, so it parses CSVs and computes effect sizes with exactly the

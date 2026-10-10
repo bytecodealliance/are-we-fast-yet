@@ -45,6 +45,7 @@ fn run_then_record() {
         started: "2026-10-07T03:17:00Z".parse().unwrap(),
         workflow_run: None,
         suite: None,
+        processes: None,
     };
     let run = record(root.path(), &options, &FakeProbe).unwrap();
     assert_eq!(run, RunNumber(7));

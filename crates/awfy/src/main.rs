@@ -39,6 +39,10 @@ enum Command {
         /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
         #[arg(long)]
         suite: Option<PathBuf>,
+        /// Processes per benchmark instead of `config.toml`'s. Recorded in
+        /// metadata by `awfy record --processes`.
+        #[arg(long)]
+        processes: Option<u32>,
         /// Units to run at once. Defaults to the available parallelism.
         #[arg(long)]
         jobs: Option<usize>,
@@ -65,6 +69,9 @@ enum Command {
         /// The suite passed to `awfy run --suite`, if any.
         #[arg(long)]
         suite: Option<String>,
+        /// The processes passed to `awfy run --processes`, if any.
+        #[arg(long)]
+        processes: Option<u32>,
     },
     /// Compare a run with its baseline.
     ///
@@ -90,6 +97,8 @@ enum Command {
         #[arg(long)]
         run: RunNumber,
     },
+    /// Check that every run in `benchmark-data/` and `excluded.toml` parse.
+    LintData,
     /// Generate the static site: copy `site/` and write JSON to `data/`.
     Site {
         /// Output directory. Removed and recreated.
@@ -115,6 +124,7 @@ fn main() -> Result<()> {
             sightglass_cli,
             out,
             suite,
+            processes,
             jobs,
         } => awfy::run::run(
             &cli.root,
@@ -123,6 +133,7 @@ fn main() -> Result<()> {
                 sightglass_cli,
                 out,
                 suite,
+                processes,
                 jobs: match jobs {
                     Some(jobs) => jobs,
                     None => std::thread::available_parallelism()?.get(),
@@ -136,6 +147,7 @@ fn main() -> Result<()> {
             started,
             workflow_run,
             suite,
+            processes,
         } => awfy::record::run(
             &cli.root,
             awfy::record::Options {
@@ -145,6 +157,7 @@ fn main() -> Result<()> {
                 started,
                 workflow_run,
                 suite,
+                processes,
             },
         ),
         Command::Regressions {
@@ -165,6 +178,7 @@ fn main() -> Result<()> {
             println!("{}", awfy::issue::issue_key(run));
             Ok(())
         }
+        Command::LintData => awfy::lint::run(&cli.root),
         Command::Site { out, site, now } => {
             awfy::site::run(&cli.root, awfy::site::Options { out, site, now })
         }

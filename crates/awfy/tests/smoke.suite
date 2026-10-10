@@ -1,0 +1,2 @@
+# The `smoke` job in ci.yml runs this suite under real Valgrind.
+../../../sightglass/benchmarks/noop/benchmark.wasm

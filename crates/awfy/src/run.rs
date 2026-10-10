@@ -21,6 +21,8 @@ pub struct Options {
     pub out: PathBuf,
     /// Overrides `config.benchmark.suite`. Relative to `sightglass/`.
     pub suite: Option<PathBuf>,
+    /// Overrides `config.benchmark.processes`.
+    pub processes: Option<u32>,
     pub jobs: usize,
 }
 
@@ -75,7 +77,10 @@ impl Runner for ProcessRunner {
 }
 
 pub fn run(root: &Path, options: Options) -> Result<()> {
-    let config = Config::load(root)?;
+    let mut config = Config::load(root)?;
+    if let Some(processes) = options.processes {
+        config.benchmark.processes = processes;
+    }
     let failures = run_with(root, &config, &options, &ProcessRunner)?;
     if !failures.is_empty() {
         log::warn!("{} benchmark(s) failed", failures.len());
@@ -375,6 +380,7 @@ mod tests {
             sightglass_cli: "sightglass-cli".into(),
             out: root.join("out"),
             suite: None,
+            processes: None,
             jobs: 2,
         }
     }
