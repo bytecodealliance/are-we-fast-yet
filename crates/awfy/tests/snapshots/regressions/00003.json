@@ -1,0 +1,57 @@
+{
+  "compared": {
+    "baseline": 2,
+    "baseline-commit": "2222222222222222222222222222222222222222",
+    "commit": "3333333333333333333333333333333333333333",
+    "min-relative-change": 0.01,
+    "other-counters": [
+      {
+        "benchmark": "bz2/benchmark.wasm",
+        "event": "instructions-retired",
+        "new-mean": 1012000.0,
+        "old-mean": 1000000.0,
+        "phase": "execution",
+        "ratio": 1.012,
+        "ratio-ci": 0.000375923,
+        "relative-change": 0.012
+      }
+    ],
+    "regressions": [
+      {
+        "benchmark": "bz2/benchmark.wasm",
+        "event": "virtual-cycles",
+        "new-mean": 2030000.0,
+        "old-mean": 2000000.0,
+        "phase": "execution",
+        "ratio": 1.015,
+        "ratio-ci": 0.000375923,
+        "relative-change": 0.015
+      }
+    ],
+    "run": 3,
+    "significance-level": 0.01,
+    "skipped-benchmarks": [],
+    "speedups": [
+      {
+        "benchmark": "Geomean",
+        "event": "virtual-cycles",
+        "new-mean": 1710130.0,
+        "old-mean": 1732050.0,
+        "phase": "compilation",
+        "ratio": 1.01282,
+        "ratio-ci": 0.000371709,
+        "relative-change": -0.0126551
+      },
+      {
+        "benchmark": "bz2/benchmark.wasm",
+        "event": "virtual-cycles",
+        "new-mean": 970000.0,
+        "old-mean": 1000000.0,
+        "phase": "compilation",
+        "ratio": 1.03093,
+        "ratio-ci": 0.00037147,
+        "relative-change": -0.03
+      }
+    ]
+  }
+}

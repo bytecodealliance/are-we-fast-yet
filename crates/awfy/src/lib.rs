@@ -10,3 +10,5 @@ pub mod regressions;
 pub mod run;
 pub mod runs;
 pub mod site;
+#[cfg(test)]
+mod snapshot;

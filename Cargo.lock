@@ -85,6 +85,7 @@ dependencies = [
  "jiff",
  "log",
  "serde",
+ "serde_json",
  "sightglass-analysis",
  "sightglass-data",
  "tempfile",

@@ -1,0 +1,14 @@
+{
+  "compared": {
+    "baseline": 1,
+    "baseline-commit": "1111111111111111111111111111111111111111",
+    "commit": "2222222222222222222222222222222222222222",
+    "min-relative-change": 0.01,
+    "other-counters": [],
+    "regressions": [],
+    "run": 2,
+    "significance-level": 0.01,
+    "skipped-benchmarks": [],
+    "speedups": []
+  }
+}

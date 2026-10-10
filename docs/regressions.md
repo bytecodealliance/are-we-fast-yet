@@ -10,6 +10,7 @@ benchmarks.
 The baseline is the newest earlier run that is not in `excluded.toml`. No
 comparison happens, and the job summary says why, when:
 
+* the run itself is excluded,
 * there is no baseline,
 * the environment fingerprints differ (see [data.md](data.md)), or
 * the Wasmtime commits are equal (e.g. a forced re-run).

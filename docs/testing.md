@@ -15,8 +15,12 @@ dry runs.
 | `run` | Builds the right `sightglass-cli` command lines from `config.toml`. Collects failures without aborting. (Processes are behind a trait and faked.) |
 | Baseline selection | Skips excluded runs. No baseline, fingerprint mismatch, and equal-commit cases. |
 | Regression filter | Significance and `min-relative-change` interplay, speedups vs. regressions, missing benchmarks. |
-| Issue rendering | Snapshot tests (`insta`) of title and body for: one regression, many, Geomean, truncated commit log. |
+| Issue rendering | Snapshot tests of title and body for: one regression, many, Geomean, truncated commit log. |
 | Site JSON | Snapshot tests of `index.json` and per-benchmark JSON from fixture runs. |
+
+Snapshot tests compare output with files in `crates/awfy/tests/snapshots/`,
+using a small helper in `awfy` rather than `insta`, to keep dependencies few.
+`AWFY_UPDATE_SNAPSHOTS=1 cargo test` rewrites them; review the diff.
 
 ## Fixtures
 

@@ -12,8 +12,10 @@ pub const METADATA: &str = "metadata.toml";
 pub const CSV: &str = "sightglass.csv.gz";
 pub const EXCLUDED: &str = "excluded.toml";
 
-/// A run number, displayed zero-padded to five digits.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash)]
+/// A run number, displayed zero-padded to five digits. Serialized as an
+/// integer.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
+#[serde(transparent)]
 pub struct RunNumber(pub u32);
 
 impl RunNumber {

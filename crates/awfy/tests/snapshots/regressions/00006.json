@@ -1,0 +1,19 @@
+{
+  "compared": {
+    "baseline": 5,
+    "baseline-commit": "5555555555555555555555555555555555555555",
+    "commit": "6666666666666666666666666666666666666666",
+    "min-relative-change": 0.01,
+    "other-counters": [],
+    "regressions": [],
+    "run": 6,
+    "significance-level": 0.01,
+    "skipped-benchmarks": [
+      [
+        "pulldown-cmark/benchmark.wasm",
+        "not in run 00006"
+      ]
+    ],
+    "speedups": []
+  }
+}

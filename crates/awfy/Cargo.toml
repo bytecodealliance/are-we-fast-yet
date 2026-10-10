@@ -17,3 +17,4 @@ sightglass-analysis = { path = "../../sightglass/crates/analysis" }
 sightglass-data = { path = "../../sightglass/crates/data" }
 tempfile = "3"
 toml = "0.9"
+serde_json = "1"

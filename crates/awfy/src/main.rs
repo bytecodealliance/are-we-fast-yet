@@ -1,5 +1,6 @@
 use anyhow::Result;
 use awfy::metadata::Timestamp;
+use awfy::runs::RunNumber;
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
@@ -66,7 +67,24 @@ enum Command {
         suite: Option<String>,
     },
     /// Compare a run with its baseline.
-    Regressions,
+    ///
+    /// Writes a Markdown job summary. With `--issue-dir`, also writes
+    /// `title.txt` and `body.md` there if there are regressions.
+    Regressions {
+        /// The run to check, e.g. `00042` or `42`.
+        #[arg(long)]
+        run: RunNumber,
+        /// Append the job summary to this file instead of stderr, e.g.
+        /// `$GITHUB_STEP_SUMMARY`.
+        #[arg(long)]
+        summary: Option<PathBuf>,
+        /// Write the issue title and body here, if there are regressions.
+        #[arg(long)]
+        issue_dir: Option<PathBuf>,
+        /// A Wasmtime clone, for the issue's commit log.
+        #[arg(long)]
+        wasmtime_repo: Option<PathBuf>,
+    },
     /// Generate the static site.
     Site,
 }
@@ -113,7 +131,20 @@ fn main() -> Result<()> {
                 suite,
             },
         ),
-        Command::Regressions => awfy::regressions::run(&cli.root),
+        Command::Regressions {
+            run,
+            summary,
+            issue_dir,
+            wasmtime_repo,
+        } => awfy::regressions::run(
+            &cli.root,
+            awfy::regressions::Options {
+                run,
+                summary,
+                issue_dir,
+                wasmtime_repo,
+            },
+        ),
         Command::Site => awfy::site::run(&cli.root),
     }
 }
