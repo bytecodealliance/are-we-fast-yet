@@ -1,0 +1,27 @@
+schema = 1
+started = 2026-10-02T03:17:00Z
+finished = 2026-10-02T04:21:12Z
+
+[wasmtime]
+commit = "2222222222222222222222222222222222222222"
+commit-date = 2026-10-02T01:41:05Z
+
+[sightglass]
+commit = "e38856287c8871228d7ff843e29028c381a71dd7"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "fedcba9876543210fedcba9876543210fedcba98"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/102"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+processes = 3
+engine-flags = "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2"
+
+[failures]

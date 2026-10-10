@@ -17,7 +17,12 @@ struct Cli {
 #[derive(Subcommand)]
 enum Command {
     /// Print a field from the latest run's metadata.
-    Latest,
+    ///
+    /// Prints nothing if there are no runs.
+    Latest {
+        /// Dotted field, e.g. `wasmtime.commit` or `started`.
+        field: String,
+    },
     /// Run the suite under callgrind.
     Run,
     /// Write a new run directory from `awfy run`'s output.
@@ -32,7 +37,7 @@ fn main() -> Result<()> {
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("info")).init();
     let cli = Cli::parse();
     match cli.command {
-        Command::Latest => awfy::latest::run(&cli.root),
+        Command::Latest { field } => awfy::latest::run(&cli.root, &field),
         Command::Run => awfy::run::run(&cli.root),
         Command::Record => awfy::record::run(&cli.root),
         Command::Regressions => awfy::regressions::run(&cli.root),
