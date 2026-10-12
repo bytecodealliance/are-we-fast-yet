@@ -4,7 +4,7 @@
   "type": "module",
   "description": "Development dependencies for testing the site. Nothing deployed depends on these.",
   "scripts": {
-    "test:unit": "node --test tests/unit",
+    "test:unit": "node --test 'tests/unit/*.test.js'",
     "test:e2e": "playwright test"
   },
   "devDependencies": {

@@ -82,7 +82,7 @@ jobs:
           node-version: 24
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
-      - run: node --test tests/unit
+      - run: node --test 'tests/unit/*.test.js'
       # Builds the fixture site with `awfy site` in its global setup.
       - run: npx playwright test
 
