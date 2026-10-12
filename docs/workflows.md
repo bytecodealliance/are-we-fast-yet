@@ -10,5 +10,6 @@
 
 ## Upgrades
 
-Bumping Sightglass, the toolchain, or the runner image is a normal PR. It
+Bumping Sightglass, the toolchain, Valgrind (the `version` default in
+`.github/actions/install-valgrind`), or the runner image is a normal PR. It
 changes the fingerprint, so the next run is not checked for regressions.

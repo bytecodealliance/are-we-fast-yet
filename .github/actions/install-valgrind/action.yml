@@ -1,0 +1,20 @@
+name: Install Valgrind
+description: Install the pinned Valgrind. Bumping it changes the fingerprint.
+
+inputs:
+  version:
+    description: The exact Ubuntu package version.
+    default: 1:3.22.0-0ubuntu3
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        VERSION: ${{ inputs.version }}
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y --no-install-recommends "valgrind=$VERSION"
+        # `1:3.22.0-0ubuntu3` reports `valgrind-3.22.0`.
+        upstream=${VERSION#*:}
+        test "$(valgrind --version)" = "valgrind-${upstream%%-*}"

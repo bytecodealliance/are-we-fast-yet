@@ -93,7 +93,7 @@ jobs:
 
       - name: Install Valgrind
         if: steps.check.outputs.skip == 'false'
-        run: sudo apt-get update && sudo apt-get install -y valgrind
+        uses: ./.github/actions/install-valgrind
 
       # Sightglass's build script fetches into BUILD_DIR's existing clone and
       # reuses its `target/`, so caching it makes daily builds incremental.

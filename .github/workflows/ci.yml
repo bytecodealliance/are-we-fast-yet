@@ -38,7 +38,7 @@ jobs:
           workspaces: |
             .
             sightglass
-      - run: sudo apt-get update && sudo apt-get install -y valgrind
+      - uses: ./.github/actions/install-valgrind
       - name: Restore engine
         id: engine
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
