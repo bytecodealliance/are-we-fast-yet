@@ -1,0 +1,42 @@
+name: Rust cache
+description: Cache the Cargo registry and the target directories of Cargo workspaces.
+
+inputs:
+  workspaces:
+    description: Newline-separated Cargo workspace roots, relative to the repository root.
+    default: .
+
+runs:
+  using: composite
+  steps:
+    - name: Compute cache key
+      id: key
+      shell: bash
+      env:
+        WORKSPACES: ${{ inputs.workspaces }}
+      run: |
+        # Incremental artifacts bloat the cache and don't help clean CI builds.
+        echo "CARGO_INCREMENTAL=0" >> "$GITHUB_ENV"
+        paths=""
+        hashes=$(sha256sum rust-toolchain.toml)
+        while read -r ws; do
+          [ -n "$ws" ] || continue
+          paths+="$ws/target"$'\n'
+          hashes+=$'\n'$(sha256sum "$ws/Cargo.lock")
+        done <<< "$WORKSPACES"
+        echo "hash=$(sha256sum <<< "$hashes" | cut -c1-20)" >> "$GITHUB_OUTPUT"
+        {
+          echo "paths<<EOF"
+          printf '%s' "$paths"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
+
+    - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+      with:
+        path: |
+          ~/.cargo/registry/index
+          ~/.cargo/registry/cache
+          ~/.cargo/git/db
+          ${{ steps.key.outputs.paths }}
+        key: rust-${{ runner.os }}-${{ github.job }}-${{ steps.key.outputs.hash }}
+        restore-keys: rust-${{ runner.os }}-${{ github.job }}-
