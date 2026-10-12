@@ -54,13 +54,14 @@ jobs:
       - run: cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
       - run: cargo build --release -p awfy
       # Records into this checkout's benchmark-data/, which is thrown away.
+      # Scratch lives outside `target/`, which the Rust cache restores.
       - name: awfy run and record
         run: |
           now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           target/release/awfy run --engine target/smoke-engine/libengine.so \
             --sightglass-cli sightglass/target/release/sightglass-cli \
-            --suite ../crates/awfy/tests/smoke.suite --processes 1 --out target/smoke-scratch
-          target/release/awfy record --scratch target/smoke-scratch \
+            --suite ../crates/awfy/tests/smoke.suite --processes 1 --out "$RUNNER_TEMP/smoke-scratch"
+          target/release/awfy record --scratch "$RUNNER_TEMP/smoke-scratch" \
             --wasmtime-commit "$WASMTIME_REVISION" --wasmtime-commit-date "$now" \
             --started "$now" --suite ../crates/awfy/tests/smoke.suite --processes 1
       - run: cargo test -p awfy --test smoke -- --ignored
@@ -83,7 +84,7 @@ jobs:
       - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: node --test 'tests/unit/*.test.js'
-      # Builds the fixture site with `awfy site` in its global setup.
+      # Builds the fixture site with `awfy site` before serving it.
       - run: npx playwright test
 
   actionlint:

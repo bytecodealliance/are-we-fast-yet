@@ -1,4 +1,4 @@
-// A tiny static server for the fixture site built by `global-setup.js`.
+// A tiny static server for the fixture site built by `build-fixture.js`.
 // Usage: node serve.js [dir] [port]
 
 import { createServer } from "node:http";
