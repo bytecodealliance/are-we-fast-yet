@@ -35,7 +35,7 @@ fn lint(data: &DataDir) -> Result<Vec<String>> {
     match data.excluded() {
         Ok(excluded) => {
             for e in excluded {
-                if !runs.iter().any(|r| *r == e.run) {
+                if !runs.contains(&e.run) {
                     problems.push(format!(
                         "{}: excludes run {}, which does not exist",
                         runs::EXCLUDED,
@@ -48,7 +48,7 @@ fn lint(data: &DataDir) -> Result<Vec<String>> {
     }
     // Run-like names that `runs()` silently skips are probably typos.
     if data.path().is_dir() {
-        for entry in std::fs::read_dir(&data.path())? {
+        for entry in std::fs::read_dir(data.path())? {
             let name = entry?.file_name().to_string_lossy().into_owned();
             let digits = name.bytes().all(|b| b.is_ascii_digit());
             if digits && !runs.iter().any(|r| r.to_string() == name) {

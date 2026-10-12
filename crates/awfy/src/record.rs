@@ -116,7 +116,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
     .with_context(|| format!("parsing {}", failures_path.display()))?;
 
     let data = DataDir::new(root);
-    std::fs::create_dir_all(&data.path())?;
+    std::fs::create_dir_all(data.path())?;
     let run = data.next_run_number()?;
     let target = data.run_dir(run);
     if target.exists() {
@@ -127,7 +127,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
     // never leaves a partial run. `runs()` ignores the temp dir's name.
     let tmp = tempfile::Builder::new()
         .prefix(".record-")
-        .tempdir_in(&data.path())?;
+        .tempdir_in(data.path())?;
     let csv = std::fs::File::create(tmp.path().join(runs::CSV))?;
     runs::write_csv_gz(&measurements, std::io::BufWriter::new(csv))?;
 
@@ -452,7 +452,7 @@ mod tests {
         assert_eq!(measurements.len(), 5);
 
         // Only the run directory was added.
-        let mut entries: Vec<_> = std::fs::read_dir(&data.path())
+        let mut entries: Vec<_> = std::fs::read_dir(data.path())
             .unwrap()
             .map(|e| e.unwrap().file_name().into_string().unwrap())
             .collect();
