@@ -2,7 +2,7 @@ mod common;
 
 use anyhow::Result;
 use awfy::metadata::Timestamp;
-use awfy::record::{record, Options, SystemMethods};
+use awfy::record::{Options, SystemMethods, record};
 use awfy::runs::{DataDir, RunNumber};
 use std::path::Path;
 

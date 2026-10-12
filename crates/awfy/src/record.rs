@@ -3,11 +3,11 @@
 
 use crate::config::Config;
 use crate::metadata::{
-    AreWeFastYet, Environment, Metadata, RunConfig, Sightglass, Timestamp, Wasmtime, SCHEMA,
+    AreWeFastYet, Environment, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
 };
 use crate::run::FAILURES;
 use crate::runs::{self, DataDir, RunNumber};
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use sightglass_data::Measurement;
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
@@ -181,7 +181,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
 /// `process` becomes the unit's process index from its file name, since the
 /// OS pid is noise. `engine` becomes `wasmtime`, and `wasm` is made relative
 /// to `sightglass/benchmarks/`.
-pub fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
+fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(scratch)
         .with_context(|| format!("reading {}", scratch.display()))?
         .map(|e| Ok(e?.path()))
@@ -227,7 +227,7 @@ fn process_index(file: &Path) -> Result<u32> {
 /// Make a wasm path relative to `sightglass/benchmarks/`: strip everything up
 /// to and including the last `benchmarks` directory. A path without one must
 /// already be relative to it.
-pub fn normalize_wasm(wasm: &str) -> Result<String> {
+fn normalize_wasm(wasm: &str) -> Result<String> {
     let path = Path::new(wasm);
     let components: Vec<Component> = path.components().collect();
     let rest = match components
@@ -395,9 +395,11 @@ mod tests {
             ]
         );
         // Other columns are untouched.
-        assert!(merged
-            .iter()
-            .all(|m| m.engine.flags.as_deref() == Some("-Cfoo")));
+        assert!(
+            merged
+                .iter()
+                .all(|m| m.engine.flags.as_deref() == Some("-Cfoo"))
+        );
         assert!(merged.iter().all(|m| m.arch == "x86_64"));
     }
 

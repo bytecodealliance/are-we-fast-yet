@@ -7,13 +7,13 @@ use crate::metadata::{Metadata, RunConfig};
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fingerprint {
     /// The sightglass commit.
-    pub sightglass: String,
+    sightglass: String,
     /// The valgrind version.
-    pub valgrind: String,
+    valgrind: String,
     /// The rustc version.
-    pub rustc: String,
+    rustc: String,
     /// The configuration used when running the benchmarks.
-    pub config: RunConfig,
+    config: RunConfig,
 }
 
 impl Fingerprint {

@@ -21,17 +21,17 @@ pub const VIRTUAL_CYCLES: &str = "virtual-cycles";
 pub struct Options {
     /// The run to check, e.g. `00042` or `42`.
     #[arg(long)]
-    pub run: RunNumber,
+    run: RunNumber,
     /// Append the job summary to this file instead of stderr, e.g.
     /// `$GITHUB_STEP_SUMMARY`.
     #[arg(long)]
-    pub summary: Option<PathBuf>,
+    summary: Option<PathBuf>,
     /// Write the issue title and body here, if there are regressions.
     #[arg(long)]
-    pub issue_dir: Option<PathBuf>,
+    issue_dir: Option<PathBuf>,
     /// A Wasmtime clone, for the issue's commit log.
     #[arg(long)]
-    pub wasmtime_repo: Option<PathBuf>,
+    wasmtime_repo: Option<PathBuf>,
 }
 
 /// Why a run was not compared.
@@ -42,7 +42,7 @@ pub enum Skip {
     Excluded,
     /// There is no earlier baseline to compare with.
     NoBaseline,
-    /// What changed, from [`Fingerprint::diff`].
+    /// What changed, from `Fingerprint::diff`.
     FingerprintChanged(Vec<String>),
     /// Both runs measured this Wasmtime commit, e.g. a forced re-run.
     SameCommit(String),
@@ -99,12 +99,12 @@ pub struct Report {
     /// Virtual-cycles regressions, Geomean first, then largest first.
     pub regressions: Vec<Change>,
     /// Virtual-cycles speedups, in the same order.
-    pub speedups: Vec<Change>,
+    speedups: Vec<Change>,
     /// Other events that changed for the regressed (benchmark, phase) pairs,
     /// in the same order.
     pub other_counters: Vec<Change>,
     /// Benchmarks in only one of the runs, with a note saying which.
-    pub skipped_benchmarks: Vec<(String, String)>,
+    skipped_benchmarks: Vec<(String, String)>,
 }
 
 /// A significant change of at least `min-relative-change`.
@@ -246,7 +246,7 @@ pub fn compare(data: &DataDir, config: &Config, run: RunNumber) -> Result<Outcom
 }
 
 /// The comparison itself, once the baseline has been chosen.
-pub fn compare_measurements(
+fn compare_measurements(
     config: &Config,
     (baseline, old_meta, old): (RunNumber, &Metadata, Vec<Measurement<'static>>),
     (run, new_meta, new): (RunNumber, &Metadata, Vec<Measurement<'static>>),
@@ -336,7 +336,7 @@ pub fn compare_measurements(
 }
 
 /// The Markdown job summary.
-pub fn summary(outcome: &Outcome) -> String {
+fn summary(outcome: &Outcome) -> String {
     let mut s = String::new();
     match outcome {
         Outcome::Skipped {
@@ -410,7 +410,7 @@ fn percent(x: f64) -> String {
 }
 
 /// Get a string describing the given ratio `x` as a signed percent.
-pub fn signed_percent(x: f64) -> String {
+fn signed_percent(x: f64) -> String {
     format!("{:+.2}%", x * 100.0)
 }
 
@@ -484,12 +484,14 @@ mod tests {
 
     #[test]
     fn missing_run() {
-        assert!(compare(
-            &DataDir::new(&fixtures()),
-            &config(),
-            RunNumber::new(99).unwrap()
-        )
-        .is_err());
+        assert!(
+            compare(
+                &DataDir::new(&fixtures()),
+                &config(),
+                RunNumber::new(99).unwrap()
+            )
+            .is_err()
+        );
     }
 
     #[test]

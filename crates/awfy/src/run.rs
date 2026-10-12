@@ -4,7 +4,7 @@
 //! `docs/architecture.md`.
 
 use crate::config::Config;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use std::collections::{BTreeMap, VecDeque};
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
@@ -19,37 +19,37 @@ pub const FAILURES: &str = "failures.toml";
 pub struct Options {
     /// Path to the Wasmtime `libengine.so`.
     #[arg(long)]
-    pub engine: PathBuf,
+    engine: PathBuf,
     /// Path to `sightglass-cli`.
     #[arg(long, default_value = "sightglass-cli")]
-    pub sightglass_cli: PathBuf,
+    sightglass_cli: PathBuf,
     /// Scratch directory for per-unit CSVs. Must be empty or missing.
     #[arg(long)]
-    pub out: PathBuf,
+    out: PathBuf,
     /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
     #[arg(long)]
-    pub suite: Option<PathBuf>,
+    suite: Option<PathBuf>,
     /// Processes per benchmark instead of `config.toml`'s. Recorded in
     /// metadata by `awfy record --processes`.
     #[arg(long)]
-    pub processes: Option<u32>,
+    processes: Option<u32>,
     /// Units to run at once. Defaults to the available parallelism.
     #[arg(long)]
-    pub jobs: Option<usize>,
+    jobs: Option<usize>,
 }
 
 /// One `sightglass-cli` invocation: a benchmark in one process.
 #[derive(Clone, Debug, PartialEq, Eq)]
-pub struct Unit {
+struct Unit {
     /// Relative to `sightglass/benchmarks/`, or absolute if outside it.
-    pub wasm: PathBuf,
+    wasm: PathBuf,
     /// Which `sightglass-cli` process index this unit is.
-    pub process: u32,
+    process: u32,
 }
 
 impl Unit {
     /// The output file name.
-    pub fn csv_name(&self) -> String {
+    fn csv_name(&self) -> String {
         let wasm = self.wasm.to_string_lossy();
         let wasm = wasm.trim_start_matches('/').replace('/', "__");
         // The zero-padded process index keeps a benchmark's files in process
@@ -60,18 +60,18 @@ impl Unit {
 
 /// How a process exited.
 #[derive(Clone, Debug)]
-pub struct Exit {
+struct Exit {
     /// Did the process exit successfully?
-    pub success: bool,
+    success: bool,
     /// E.g. `exit status: 1`.
-    pub status: String,
+    status: String,
     /// The `stderr` of this process.
-    pub stderr: String,
+    stderr: String,
 }
 
 /// A trait for spawning `sightglass-cli` subprocesses, so we can fake it in
 /// tests.
-pub trait Runner: Sync {
+trait Runner: Sync {
     /// Run `sightglass-cli`.
     fn run(&self, program: &Path, args: &[OsString], cwd: &Path) -> Result<Exit>;
 }
@@ -237,7 +237,7 @@ fn run_with(
 
 /// The `sightglass-cli` arguments for one unit, run from
 /// `sightglass/benchmarks/` so that the CSV's `wasm` column is relative to it.
-pub fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> Vec<OsString> {
+fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "benchmark",
         "--measure",
@@ -491,6 +491,8 @@ mod tests {
             "--measure",
             "callgrind",
             "--processes",
+            "1",
+            "--iterations-per-process",
             "1",
             "--raw",
             "--output-format",

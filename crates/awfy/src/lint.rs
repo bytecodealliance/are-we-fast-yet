@@ -2,11 +2,11 @@
 //! rather than the next benchmark or deploy.
 
 use crate::runs::{self, DataDir};
-use anyhow::{bail, Result};
+use anyhow::{Result, bail};
 use std::path::Path;
 
 /// Every problem in `benchmark-data/`, or none.
-pub fn lint(data: &DataDir) -> Result<Vec<String>> {
+fn lint(data: &DataDir) -> Result<Vec<String>> {
     let mut problems = Vec::new();
     let runs = data.runs()?;
     for &run in &runs {

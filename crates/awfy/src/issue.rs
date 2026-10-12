@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::metadata::Metadata;
-use crate::regressions::{short, Change, Report, VIRTUAL_CYCLES};
+use crate::regressions::{Change, Report, VIRTUAL_CYCLES, short};
 use crate::runs::RunNumber;
 use crate::slug::slug;
 use anyhow::{Context, Result};
@@ -12,17 +12,17 @@ use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// The Wasmtime repository URL on github.
-pub const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
+const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
 
 /// Most commits listed in the body.
-pub const MAX_COMMITS: usize = 50;
+const MAX_COMMITS: usize = 50;
 
 /// An issue to be created.
-pub struct Issue {
+struct Issue {
     /// The issue's title.
-    pub title: String,
+    title: String,
     /// The issue's body.
-    pub body: String,
+    body: String,
 }
 
 /// The title suffix that identifies a run's issue. The workflow searches for
@@ -32,7 +32,7 @@ pub fn issue_key(run: RunNumber) -> String {
 }
 
 /// A trait to run `git log`, so we can fake it in tests.
-pub trait GitLog {
+trait GitLog {
     /// Run `git log --oneline old..new`.
     fn log(&self, old: &str, new: &str) -> Result<Vec<String>>;
 }
@@ -40,7 +40,7 @@ pub trait GitLog {
 /// A local Wasmtime clone.
 ///
 /// A treeless checkout is good enough for our purposes.
-pub struct Repo(pub PathBuf);
+struct Repo(PathBuf);
 
 impl GitLog for Repo {
     fn log(&self, old: &str, new: &str) -> Result<Vec<String>> {
@@ -69,7 +69,7 @@ impl GitLog for Repo {
 }
 
 /// Render the issue, or `None` if there are no regressions.
-pub fn render(
+fn render(
     report: &Report,
     metadata: &Metadata,
     config: &Config,
@@ -247,7 +247,7 @@ pub fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::regressions::{compare, Outcome};
+    use crate::regressions::{Outcome, compare};
     use crate::runs::DataDir;
     use crate::snapshot::assert_snapshot;
     use sightglass_data::Phase;
@@ -314,9 +314,11 @@ mod tests {
             issue.title,
             "Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)"
         );
-        assert!(issue
-            .title
-            .ends_with(&issue_key(RunNumber::new(3).unwrap())));
+        assert!(
+            issue
+                .title
+                .ends_with(&issue_key(RunNumber::new(3).unwrap()))
+        );
     }
 
     #[test]
@@ -395,9 +397,11 @@ mod tests {
     fn no_regressions() {
         let (mut report, metadata) = fixture_report();
         report.regressions.clear();
-        assert!(render(&report, &metadata, &config(), None)
-            .unwrap()
-            .is_none());
+        assert!(
+            render(&report, &metadata, &config(), None)
+                .unwrap()
+                .is_none()
+        );
         let dir = tempfile::tempdir().unwrap();
         let issue_dir = dir.path().join("issue");
         assert!(!write(&issue_dir, &report, &metadata, &config(), None).unwrap());

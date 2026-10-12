@@ -4,10 +4,10 @@
 
 use crate::fingerprint::Fingerprint;
 use crate::metadata::{Metadata, Timestamp};
-use crate::regressions::{display, VIRTUAL_CYCLES};
+use crate::regressions::{VIRTUAL_CYCLES, display};
 use crate::runs::{DataDir, RunNumber};
 use crate::slug::slug;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::{Serialize, Serializer};
 use sightglass_analysis::geomean::{self, GEOMEAN};
 use sightglass_data::{Measurement, Phase};
@@ -17,21 +17,21 @@ use std::path::{Path, PathBuf};
 /// The current schema version.
 ///
 /// Bump on breaking changes.
-pub const SCHEMA: u32 = 1;
+const SCHEMA: u32 = 1;
 
 /// Options for the `awfy site` command.
 #[derive(clap::Args)]
 pub struct Options {
     /// Output directory. Removed and recreated.
     #[arg(long)]
-    pub out: PathBuf,
+    out: PathBuf,
     /// Static files to copy instead of `<root>/site`.
     #[arg(long)]
-    pub site: Option<PathBuf>,
+    site: Option<PathBuf>,
     /// The `generated` timestamp, RFC 3339. Defaults to
     /// `$SOURCE_DATE_EPOCH`, then the current time.
     #[arg(long)]
-    pub now: Option<Timestamp>,
+    now: Option<Timestamp>,
 }
 
 /// Top-level entries in `site/` that are for development, not deployment.
@@ -46,46 +46,46 @@ const NOT_DEPLOYED: &[&str] = &[
 /// The index file summarizing the benchmark data available.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct Index {
+struct Index {
     /// The schema version.
-    pub schema: u32,
+    schema: u32,
     /// When this index was generated.
     #[serde(serialize_with = "display")]
-    pub generated: Timestamp,
+    generated: Timestamp,
     /// `owner/name` of this repository, for links to raw data.
-    pub repo: String,
+    repo: String,
     /// The benchmark runs available.
-    pub runs: Vec<IndexRun>,
+    runs: Vec<IndexRun>,
     /// The benchmarks available.
-    pub benchmarks: Vec<String>,
+    benchmarks: Vec<String>,
     /// The benchmark phases available.
-    pub phases: Vec<String>,
+    phases: Vec<String>,
     /// The benchmark metrics available.
-    pub metrics: Vec<String>,
+    metrics: Vec<String>,
 }
 
 /// A summary of a benchmarking run inside the index file.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct IndexRun {
+struct IndexRun {
     /// The benchmarking run's number.
-    pub run: RunNumber,
+    run: RunNumber,
     /// The Wasmtime commit.
-    pub wasmtime: String,
+    wasmtime: String,
     /// The Wasmtime commit's date.
     #[serde(serialize_with = "display")]
-    pub date: Timestamp,
+    date: Timestamp,
     /// The fingerprint change for this run, if any.
-    pub fingerprint_change: Option<String>,
+    fingerprint_change: Option<String>,
 }
 
 /// The benchmark data series for a particular Wasm benchmark.
 #[derive(Serialize)]
-pub struct BenchmarkSeries {
+struct BenchmarkSeries {
     /// The Wasm benchmark.
-    pub benchmark: String,
+    benchmark: String,
     /// A map `phase -> metric -> [run, mean]` points in run order.
-    pub series: BTreeMap<String, BTreeMap<String, Vec<(RunNumber, Num)>>>,
+    series: BTreeMap<String, BTreeMap<String, Vec<(RunNumber, Num)>>>,
 }
 
 /// The data for a particular benchmark run for `run.html`.
@@ -93,34 +93,34 @@ pub struct BenchmarkSeries {
 /// This is `data/runs/NNNNN.json`.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RunPage {
+struct RunPage {
     /// The benchmark run number.
-    pub run: RunNumber,
+    run: RunNumber,
     /// The previous run, which changes are relative to.
-    pub previous: Option<RunNumber>,
+    previous: Option<RunNumber>,
     /// The fingerprint changes, if any.
-    pub fingerprint_change: Option<String>,
+    fingerprint_change: Option<String>,
     /// `metadata.toml`, with timestamps as RFC 3339 strings.
-    pub metadata: serde_json::Value,
+    metadata: serde_json::Value,
     /// Virtual cycles for every (benchmark, phase) in this run, Geomean first.
-    pub changes: Vec<RunChange>,
+    changes: Vec<RunChange>,
 }
 
 /// The summarized change for a particular run, compared to its previous
 /// baseline.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
-pub struct RunChange {
+struct RunChange {
     /// The Wasm benchmark that changed.
-    pub benchmark: String,
+    benchmark: String,
     /// The benchmark phase that changed.
-    pub phase: String,
+    phase: String,
     /// The mean of this run, after the change.
-    pub mean: Num,
+    mean: Num,
     /// The mean of the previous run.
-    pub previous: Option<Num>,
+    previous: Option<Num>,
     /// `(mean - previous) / previous`.
-    pub change: Option<Num>,
+    change: Option<Num>,
 }
 
 /// A number written compactly: an integer when integral, otherwise rounded
@@ -129,11 +129,11 @@ pub struct RunChange {
 /// Only for use in the index and other summaries that get used in the UI. The
 /// raw sightglass data should always be stored in full precision.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Num {
+struct Num {
     /// The number value.
-    pub value: f64,
+    value: f64,
     /// The number of digits to round to.
-    pub digits: i32,
+    digits: i32,
 }
 
 impl Num {
@@ -534,8 +534,7 @@ mod tests {
             .collect();
         assert_eq!(runs, [1, 2, 3, 5]);
         // pulldown-cmark is missing from 00006, so has no point there.
-        let points = &files["benchmarks/pulldown-cmark-benchmark.json"]["series"]["execution"]
-            ["virtual-cycles"];
+        let points = &files["benchmarks/pulldown-cmark-benchmark.json"]["series"]["execution"]["virtual-cycles"];
         assert_eq!(points.as_array().unwrap().len(), 4);
     }
 

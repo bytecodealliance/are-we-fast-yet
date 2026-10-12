@@ -37,7 +37,7 @@ pub struct Regressions {
     /// The minimum relative change to be considered significant.
     pub min_relative_change: f64,
     /// `owner/name` of the repository regression issues are filed on.
-    pub issue_repo: String,
+    issue_repo: String,
 }
 
 /// Config options for site generation.
@@ -104,14 +104,10 @@ mod tests {
         let config = Config::load(&root).unwrap();
         assert_eq!(config.benchmark.suite, "benchmarks/default.suite");
         // Line continuations leave one space between flags and no newlines.
-        assert!(
-            config
-                .benchmark
-                .engine_flags
-                .starts_with("--target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 ")
-        );
-        assert!(!config.benchmark.engine_flags.contains('\n'));
-        assert!(!config.benchmark.engine_flags.contains("  "));
+        let flags = &config.benchmark.engine_flags;
+        assert!(flags.starts_with("-Cparallel-compilation=n --target x86_64-unknown-linux-gnu "));
+        assert!(!flags.contains('\n'));
+        assert!(!flags.contains("  "));
         assert!(config.site.base_url.ends_with('/'));
     }
 

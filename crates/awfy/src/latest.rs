@@ -7,7 +7,7 @@ use anyhow::Result;
 use std::path::Path;
 
 /// The field's value, or `None` when there are no visible runs.
-pub fn latest(root: &Path, field: &str) -> Result<Option<String>> {
+fn latest(root: &Path, field: &str) -> Result<Option<String>> {
     let data = DataDir::new(root);
     match data.visible_runs()?.last() {
         Some(&run) => Ok(Some(data.metadata(run)?.field(field)?)),

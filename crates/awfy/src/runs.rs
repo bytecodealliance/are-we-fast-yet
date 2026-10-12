@@ -2,7 +2,7 @@
 //! `docs/data.md`.
 
 use crate::metadata::Metadata;
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result, bail};
 use serde::Deserialize;
 use sightglass_data::Measurement;
 use std::fmt;
@@ -35,7 +35,7 @@ impl<'de> Deserialize<'de> for RunNumber {
 
 impl RunNumber {
     /// The maximum run number.
-    pub const MAX: u32 = 99_999;
+    const MAX: u32 = 99_999;
 
     /// Create a new `RunNumber`, returning an error if it is larger than the
     /// maximum.
@@ -179,7 +179,7 @@ pub struct Excluded {
     /// The number of the excluded run.
     pub run: RunNumber,
     /// The reason it was excluded.
-    pub reason: String,
+    reason: String,
 }
 
 /// Write a Sightglass raw CSV, with headers, gzipped. The output depends only
@@ -194,7 +194,7 @@ pub fn write_csv_gz(measurements: &[Measurement<'_>], writer: impl std::io::Writ
 }
 
 /// Write a Sightglass raw CSV, with headers.
-pub fn write_csv(measurements: &[Measurement<'_>], writer: impl std::io::Write) -> Result<()> {
+fn write_csv(measurements: &[Measurement<'_>], writer: impl std::io::Write) -> Result<()> {
     let mut csv = csv::Writer::from_writer(writer);
     for m in measurements {
         csv.serialize(m)?;
@@ -204,7 +204,7 @@ pub fn write_csv(measurements: &[Measurement<'_>], writer: impl std::io::Write) 
 }
 
 /// Read a gzipped Sightglass raw CSV.
-pub fn read_csv_gz(path: &Path) -> Result<Vec<Measurement<'static>>> {
+fn read_csv_gz(path: &Path) -> Result<Vec<Measurement<'static>>> {
     let mut file =
         std::fs::File::open(path).with_context(|| format!("opening {}", path.display()))?;
     // `GzDecoder` reads non-gzip input as empty rather than failing.
