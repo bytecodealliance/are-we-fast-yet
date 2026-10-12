@@ -1,6 +1,8 @@
 //! `awfy`: run Sightglass under callgrind, record runs, detect regressions,
 //! and generate the static site. See `docs/`.
 
+#![deny(missing_docs)]
+
 pub mod config;
 pub mod fingerprint;
 pub mod issue;

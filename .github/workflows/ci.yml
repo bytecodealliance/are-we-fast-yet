@@ -80,9 +80,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: 24
-      # TODO: commit site/package-lock.json and switch to `npm ci`.
-      # `@playwright/test` is pinned exactly and pins its own dependencies.
-      - run: npm install --no-audit --no-fund
+      - run: npm ci --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - run: node --test tests/unit
       # Builds the fixture site with `awfy site` in its global setup.

@@ -3,40 +3,56 @@
 
 use crate::config::Config;
 use crate::metadata::{
-    AreWeFastYet, Environment, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
+    AreWeFastYet, Environment, Metadata, RunConfig, Sightglass, Timestamp, Wasmtime, SCHEMA,
 };
 use crate::run::FAILURES;
 use crate::runs::{self, DataDir, RunNumber};
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use sightglass_data::Measurement;
 use std::collections::BTreeMap;
 use std::path::{Component, Path, PathBuf};
 
+/// Options for the `awfy record` command.
+#[derive(clap::Args)]
 pub struct Options {
+    /// `awfy run`'s output directory.
+    #[arg(long)]
     pub scratch: PathBuf,
+    /// Full SHA of the benchmarked Wasmtime commit.
+    #[arg(long)]
     pub wasmtime_commit: String,
+    /// Its committer date, RFC 3339.
+    #[arg(long)]
     pub wasmtime_commit_date: Timestamp,
+    /// When the run started, RFC 3339.
+    #[arg(long)]
     pub started: Timestamp,
+    /// URL of the workflow run.
+    #[arg(long)]
     pub workflow_run: Option<String>,
-    /// The suite `awfy run` used, if not `config.toml`'s.
+    /// The suite passed to `awfy run --suite`, if any.
+    #[arg(long)]
     pub suite: Option<String>,
-    /// The processes `awfy run` used, if not `config.toml`'s.
+    /// The processes passed to `awfy run --processes`, if any.
+    #[arg(long)]
     pub processes: Option<u32>,
 }
 
-/// Everything `record` learns from outside the scratch directory. Faked in
-/// tests.
-pub trait Probe {
+/// Everything `record` learns from outside the scratch directory, so it can be
+/// faked in tests.
+pub trait SystemMethods {
     /// Trimmed stdout of a command that must succeed.
     fn command(&self, cwd: &Path, program: &str, args: &[&str]) -> Result<String>;
     /// The CPU model name.
     fn cpu(&self) -> String;
+    /// Get the timestamp for the current moment.
     fn now(&self) -> Timestamp;
 }
 
-pub struct SystemProbe;
+/// The real system.
+struct System;
 
-impl Probe for SystemProbe {
+impl SystemMethods for System {
     fn command(&self, cwd: &Path, program: &str, args: &[&str]) -> Result<String> {
         let output = std::process::Command::new(program)
             .args(args)
@@ -75,14 +91,15 @@ impl Probe for SystemProbe {
     }
 }
 
+/// Run `awfy record` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
-    let run = record(root, &options, &SystemProbe)?;
+    let run = record(root, &options, &System)?;
     println!("{run}");
     Ok(())
 }
 
 /// Write the new run directory and return its number.
-pub fn record(root: &Path, options: &Options, probe: &dyn Probe) -> Result<RunNumber> {
+pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Result<RunNumber> {
     let config = Config::load(root)?;
     let measurements = merge(&options.scratch)?;
     if measurements.is_empty() {
@@ -99,7 +116,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn Probe) -> Result<RunNu
     .with_context(|| format!("parsing {}", failures_path.display()))?;
 
     let data = DataDir::new(root);
-    std::fs::create_dir_all(&data.path)?;
+    std::fs::create_dir_all(&data.path())?;
     let run = data.next_run_number()?;
     let target = data.run_dir(run);
     if target.exists() {
@@ -110,7 +127,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn Probe) -> Result<RunNu
     // never leaves a partial run. `runs()` ignores the temp dir's name.
     let tmp = tempfile::Builder::new()
         .prefix(".record-")
-        .tempdir_in(&data.path)?;
+        .tempdir_in(&data.path())?;
     let csv = std::fs::File::create(tmp.path().join(runs::CSV))?;
     runs::write_csv_gz(&measurements, std::io::BufWriter::new(csv))?;
 
@@ -245,7 +262,7 @@ mod tests {
         fail_valgrind: Cell<bool>,
     }
 
-    impl Probe for FakeProbe {
+    impl SystemMethods for FakeProbe {
         fn command(&self, cwd: &Path, program: &str, args: &[&str]) -> Result<String> {
             Ok(match (program, args) {
                 ("git", ["rev-parse", "HEAD"]) if cwd.ends_with("sightglass") => "s".repeat(40),
@@ -378,11 +395,9 @@ mod tests {
             ]
         );
         // Other columns are untouched.
-        assert!(
-            merged
-                .iter()
-                .all(|m| m.engine.flags.as_deref() == Some("-Cfoo"))
-        );
+        assert!(merged
+            .iter()
+            .all(|m| m.engine.flags.as_deref() == Some("-Cfoo")));
         assert!(merged.iter().all(|m| m.arch == "x86_64"));
     }
 
@@ -408,7 +423,7 @@ mod tests {
             ..options(scratch.path())
         };
         let run = record(root.path(), &options, &FakeProbe::default()).unwrap();
-        assert_eq!(run, RunNumber(4));
+        assert_eq!(run, RunNumber::new(4).unwrap());
 
         let data = DataDir::new(root.path());
         let metadata = data.metadata(run).unwrap();
@@ -435,7 +450,7 @@ mod tests {
         assert_eq!(measurements.len(), 5);
 
         // Only the run directory was added.
-        let mut entries: Vec<_> = std::fs::read_dir(&data.path)
+        let mut entries: Vec<_> = std::fs::read_dir(&data.path())
             .unwrap()
             .map(|e| e.unwrap().file_name().into_string().unwrap())
             .collect();

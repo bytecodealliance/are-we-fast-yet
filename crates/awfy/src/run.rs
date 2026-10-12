@@ -4,7 +4,7 @@
 //! `docs/architecture.md`.
 
 use crate::config::Config;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use std::collections::{BTreeMap, VecDeque};
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
@@ -14,16 +14,28 @@ use std::time::{Duration, Instant};
 /// Per-benchmark failures, written by `awfy run` and read by `awfy record`.
 pub const FAILURES: &str = "failures.toml";
 
+/// Options for the `awfy run` command.
+#[derive(clap::Args)]
 pub struct Options {
-    /// Path to `libengine.so`.
+    /// Path to the Wasmtime `libengine.so`.
+    #[arg(long)]
     pub engine: PathBuf,
+    /// Path to `sightglass-cli`.
+    #[arg(long, default_value = "sightglass-cli")]
     pub sightglass_cli: PathBuf,
+    /// Scratch directory for per-unit CSVs. Must be empty or missing.
+    #[arg(long)]
     pub out: PathBuf,
-    /// Overrides `config.benchmark.suite`. Relative to `sightglass/`.
+    /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
+    #[arg(long)]
     pub suite: Option<PathBuf>,
-    /// Overrides `config.benchmark.processes`.
+    /// Processes per benchmark instead of `config.toml`'s. Recorded in
+    /// metadata by `awfy record --processes`.
+    #[arg(long)]
     pub processes: Option<u32>,
-    pub jobs: usize,
+    /// Units to run at once. Defaults to the available parallelism.
+    #[arg(long)]
+    pub jobs: Option<usize>,
 }
 
 /// One `sightglass-cli` invocation: a benchmark in one process.
@@ -31,15 +43,17 @@ pub struct Options {
 pub struct Unit {
     /// Relative to `sightglass/benchmarks/`, or absolute if outside it.
     pub wasm: PathBuf,
+    /// Which `sightglass-cli` process index this unit is.
     pub process: u32,
 }
 
 impl Unit {
-    /// The output file name. The zero-padded process index keeps a
-    /// benchmark's files in process order when sorted.
+    /// The output file name.
     pub fn csv_name(&self) -> String {
         let wasm = self.wasm.to_string_lossy();
         let wasm = wasm.trim_start_matches('/').replace('/', "__");
+        // The zero-padded process index keeps a benchmark's files in process
+        // order when sorted.
         format!("{wasm}.{:03}.csv", self.process)
     }
 }
@@ -47,18 +61,23 @@ impl Unit {
 /// How a process exited.
 #[derive(Clone, Debug)]
 pub struct Exit {
+    /// Did the process exit successfully?
     pub success: bool,
     /// E.g. `exit status: 1`.
     pub status: String,
+    /// The `stderr` of this process.
     pub stderr: String,
 }
 
-/// Spawns `sightglass-cli`. Faked in tests.
+/// A trait for spawning `sightglass-cli` subprocesses, so we can fake it in
+/// tests.
 pub trait Runner: Sync {
+    /// Run `sightglass-cli`.
     fn run(&self, program: &Path, args: &[OsString], cwd: &Path) -> Result<Exit>;
 }
 
-pub struct ProcessRunner;
+/// The real `sightglass-cli` runner.
+struct ProcessRunner;
 
 impl Runner for ProcessRunner {
     fn run(&self, program: &Path, args: &[OsString], cwd: &Path) -> Result<Exit> {
@@ -76,6 +95,7 @@ impl Runner for ProcessRunner {
     }
 }
 
+/// Run `awfy run` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
     let mut config = Config::load(root)?;
     if let Some(processes) = options.processes {
@@ -90,13 +110,17 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
 
 /// Run every unit and write `failures.toml`. Returns the failures, by wasm
 /// path. Errors only on setup problems or if every unit failed.
-pub fn run_with(
+fn run_with(
     root: &Path,
     config: &Config,
     options: &Options,
     runner: &dyn Runner,
 ) -> Result<BTreeMap<String, String>> {
-    anyhow::ensure!(options.jobs > 0, "--jobs must be at least 1");
+    let jobs = match options.jobs {
+        Some(jobs) => jobs,
+        None => std::thread::available_parallelism()?.get(),
+    };
+    anyhow::ensure!(jobs > 0, "--jobs must be at least 1");
     let root = std::path::absolute(root)?;
     let benchmarks_dir = root.join("sightglass/benchmarks");
     // Lexically, so `..` means the same even if `sightglass` is a symlink.
@@ -151,7 +175,7 @@ pub fn run_with(
         "running {total} units ({} benchmarks x {} processes), {} at a time",
         wasms.len(),
         config.benchmark.processes,
-        options.jobs
+        jobs
     );
 
     let queue = Mutex::new(units.into_iter().enumerate().collect::<VecDeque<_>>());
@@ -191,9 +215,7 @@ pub fn run_with(
         }
     };
     std::thread::scope(|s| {
-        let workers: Vec<_> = (0..options.jobs.min(total))
-            .map(|_| s.spawn(worker))
-            .collect();
+        let workers: Vec<_> = (0..jobs.min(total)).map(|_| s.spawn(worker)).collect();
         workers
             .into_iter()
             .try_for_each(|w| w.join().expect("worker panicked"))
@@ -384,7 +406,7 @@ mod tests {
             out: root.join("out"),
             suite: None,
             processes: None,
-            jobs: 2,
+            jobs: Some(2),
         }
     }
 
@@ -540,7 +562,7 @@ mod tests {
         for jobs in [1, 4] {
             let runner = FakeRunner::default();
             let options = Options {
-                jobs,
+                jobs: Some(jobs),
                 out: root.path().join(format!("out{jobs}")),
                 ..options(root.path())
             };

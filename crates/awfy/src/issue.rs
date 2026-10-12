@@ -3,7 +3,7 @@
 
 use crate::config::Config;
 use crate::metadata::Metadata;
-use crate::regressions::{Change, Report, VIRTUAL_CYCLES, short};
+use crate::regressions::{short, Change, Report, VIRTUAL_CYCLES};
 use crate::runs::RunNumber;
 use crate::slug::slug;
 use anyhow::{Context, Result};
@@ -11,13 +11,17 @@ use sightglass_analysis::geomean::GEOMEAN;
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
+/// The Wasmtime repository URL on github.
 pub const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
 
 /// Most commits listed in the body.
 pub const MAX_COMMITS: usize = 50;
 
+/// An issue to be created.
 pub struct Issue {
+    /// The issue's title.
     pub title: String,
+    /// The issue's body.
     pub body: String,
 }
 
@@ -27,12 +31,15 @@ pub fn issue_key(run: RunNumber) -> String {
     format!("(are-we-fast-yet run {run})")
 }
 
-/// `git log --oneline old..new`. Faked in tests.
+/// A trait to run `git log`, so we can fake it in tests.
 pub trait GitLog {
+    /// Run `git log --oneline old..new`.
     fn log(&self, old: &str, new: &str) -> Result<Vec<String>>;
 }
 
-/// A Wasmtime clone. A treeless one is enough.
+/// A local Wasmtime clone.
+///
+/// A treeless checkout is good enough for our purposes.
 pub struct Repo(pub PathBuf);
 
 impl GitLog for Repo {
@@ -240,7 +247,7 @@ pub fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::regressions::{Outcome, compare};
+    use crate::regressions::{compare, Outcome};
     use crate::runs::DataDir;
     use crate::snapshot::assert_snapshot;
     use sightglass_data::Phase;
@@ -256,10 +263,12 @@ mod tests {
     /// The fixture comparison of 00003 against 00002, and 00003's metadata.
     fn fixture_report() -> (Report, Metadata) {
         let data = DataDir::new(&fixtures());
-        let Outcome::Compared(report) = compare(&data, &config(), RunNumber(3)).unwrap() else {
+        let Outcome::Compared(report) =
+            compare(&data, &config(), RunNumber::new(3).unwrap()).unwrap()
+        else {
             panic!("skipped");
         };
-        (report, data.metadata(RunNumber(3)).unwrap())
+        (report, data.metadata(RunNumber::new(3).unwrap()).unwrap())
     }
 
     struct FakeGit(usize);
@@ -305,7 +314,9 @@ mod tests {
             issue.title,
             "Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)"
         );
-        assert!(issue.title.ends_with(&issue_key(RunNumber(3))));
+        assert!(issue
+            .title
+            .ends_with(&issue_key(RunNumber::new(3).unwrap())));
     }
 
     #[test]
@@ -384,11 +395,9 @@ mod tests {
     fn no_regressions() {
         let (mut report, metadata) = fixture_report();
         report.regressions.clear();
-        assert!(
-            render(&report, &metadata, &config(), None)
-                .unwrap()
-                .is_none()
-        );
+        assert!(render(&report, &metadata, &config(), None)
+            .unwrap()
+            .is_none());
         let dir = tempfile::tempdir().unwrap();
         let issue_dir = dir.path().join("issue");
         assert!(!write(&issue_dir, &report, &metadata, &config(), None).unwrap());

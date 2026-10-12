@@ -2,30 +2,53 @@
 //! `docs/data.md`.
 
 use crate::metadata::Metadata;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use serde::Deserialize;
 use sightglass_data::Measurement;
 use std::fmt;
 use std::path::{Path, PathBuf};
 
+/// The metadata file's name.
 pub const METADATA: &str = "metadata.toml";
+
+/// The gzipped CSV sightglass data file's name.
 pub const CSV: &str = "sightglass.csv.gz";
+
+/// The excluded runs file name.
 pub const EXCLUDED: &str = "excluded.toml";
 
 /// A run number, displayed zero-padded to five digits. Serialized as an
 /// integer.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize)]
 #[serde(transparent)]
-pub struct RunNumber(pub u32);
+pub struct RunNumber(u32);
+
+impl<'de> Deserialize<'de> for RunNumber {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        let n = u32::deserialize(deserializer)?;
+        Self::new(n).map_err(serde::de::Error::custom)
+    }
+}
 
 impl RunNumber {
+    /// The maximum run number.
     pub const MAX: u32 = 99_999;
 
+    /// Create a new `RunNumber`, returning an error if it is larger than the
+    /// maximum.
     pub fn new(n: u32) -> Result<Self> {
         if n == 0 || n > Self::MAX {
             bail!("run number {n} is out of range 1..={}", Self::MAX);
         }
         Ok(Self(n))
+    }
+
+    /// Get the underlying index of this run number.
+    pub fn get(&self) -> u32 {
+        self.0
     }
 
     /// Parse a directory name, which must be exactly five ASCII digits.
@@ -54,19 +77,21 @@ impl std::str::FromStr for RunNumber {
     }
 }
 
-/// `<root>/benchmark-data/`.
+/// The benchmark data directory within an AWFY repo.
 #[derive(Clone, Debug)]
 pub struct DataDir {
-    pub path: PathBuf,
+    path: PathBuf,
 }
 
 impl DataDir {
+    /// Create a new `DataDir`.
     pub fn new(root: &Path) -> Self {
         Self {
             path: root.join("benchmark-data"),
         }
     }
 
+    /// Get the directory for a particular benchmark run.
     pub fn run_dir(&self, run: RunNumber) -> PathBuf {
         self.path.join(run.to_string())
     }
@@ -102,6 +127,7 @@ impl DataDir {
         RunNumber::new(last + 1).context("no run numbers left")
     }
 
+    /// Get every excluded run.
     pub fn excluded(&self) -> Result<Vec<Excluded>> {
         let path = self.path.join(EXCLUDED);
         let text = match std::fs::read_to_string(&path) {
@@ -126,16 +152,23 @@ impl DataDir {
         Ok(self
             .runs()?
             .into_iter()
-            .filter(|r| !excluded.iter().any(|e| e.run == r.0))
+            .filter(|r| !excluded.iter().any(|e| e.run == *r))
             .collect())
     }
 
+    /// Get the metadata for a particular run.
     pub fn metadata(&self, run: RunNumber) -> Result<Metadata> {
         Metadata::load(&self.run_dir(run).join(METADATA))
     }
 
+    /// Get the raw measurements for a particular run.
     pub fn measurements(&self, run: RunNumber) -> Result<Vec<Measurement<'static>>> {
         read_csv_gz(&self.run_dir(run).join(CSV))
+    }
+
+    /// Get the path to this benchmark data directory.
+    pub fn path(&self) -> &Path {
+        &self.path
     }
 }
 
@@ -143,7 +176,9 @@ impl DataDir {
 #[derive(Clone, Debug, PartialEq, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Excluded {
-    pub run: u32,
+    /// The number of the excluded run.
+    pub run: RunNumber,
+    /// The reason it was excluded.
     pub reason: String,
 }
 
@@ -258,6 +293,22 @@ mod tests {
     }
 
     #[test]
+    fn deserialize() {
+        #[derive(Deserialize)]
+        struct T {
+            run: RunNumber,
+        }
+        let parse = |s: &str| toml::from_str::<T>(s).map(|t| t.run);
+        assert_eq!(parse("run = 42").unwrap(), RunNumber(42));
+        assert_eq!(parse("run = 99999").unwrap(), RunNumber(99_999));
+        for bad in ["run = 0", "run = 100000", "run = -1", "run = \"00042\""] {
+            assert!(parse(bad).is_err(), "{bad}");
+        }
+        let err = parse("run = 0").unwrap_err();
+        assert!(err.to_string().contains("out of range"), "{err}");
+    }
+
+    #[test]
     fn out_of_numbers() {
         let (_tmp, data) = data_dir(&["99999"], &[]);
         assert!(data.next_run_number().is_err());
@@ -274,7 +325,7 @@ mod tests {
         assert_eq!(
             data.excluded().unwrap(),
             [Excluded {
-                run: 2,
+                run: RunNumber::new(2).unwrap(),
                 reason: "bad".into()
             }]
         );

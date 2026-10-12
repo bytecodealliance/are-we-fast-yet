@@ -2,7 +2,7 @@
 //! rather than the next benchmark or deploy.
 
 use crate::runs::{self, DataDir};
-use anyhow::{Result, bail};
+use anyhow::{bail, Result};
 use std::path::Path;
 
 /// Every problem in `benchmark-data/`, or none.
@@ -35,7 +35,7 @@ pub fn lint(data: &DataDir) -> Result<Vec<String>> {
     match data.excluded() {
         Ok(excluded) => {
             for e in excluded {
-                if !runs.iter().any(|r| r.0 == e.run) {
+                if !runs.iter().any(|r| *r == e.run) {
                     problems.push(format!(
                         "{}: excludes run {}, which does not exist",
                         runs::EXCLUDED,
@@ -47,8 +47,8 @@ pub fn lint(data: &DataDir) -> Result<Vec<String>> {
         Err(e) => problems.push(format!("{e:#}")),
     }
     // Run-like names that `runs()` silently skips are probably typos.
-    if data.path.is_dir() {
-        for entry in std::fs::read_dir(&data.path)? {
+    if data.path().is_dir() {
+        for entry in std::fs::read_dir(&data.path())? {
             let name = entry?.file_name().to_string_lossy().into_owned();
             let digits = name.bytes().all(|b| b.is_ascii_digit());
             if digits && !runs.iter().any(|r| r.to_string() == name) {
@@ -59,6 +59,7 @@ pub fn lint(data: &DataDir) -> Result<Vec<String>> {
     Ok(problems)
 }
 
+/// Run linting on the given directory.
 pub fn run(root: &Path) -> Result<()> {
     let data = DataDir::new(root);
     let problems = lint(&data)?;
@@ -66,7 +67,7 @@ pub fn run(root: &Path) -> Result<()> {
         eprintln!("error: {p}");
     }
     if !problems.is_empty() {
-        bail!("{} problem(s) in {}", problems.len(), data.path.display());
+        bail!("{} problem(s) in {}", problems.len(), data.path().display());
     }
     log::info!("{} runs OK", data.runs()?.len());
     Ok(())
@@ -115,7 +116,7 @@ mod tests {
     fn reports_every_problem() {
         let tmp = fixture_copy();
         let data = DataDir::new(tmp.path());
-        let p = |run: &str, file: &str| data.path.join(run).join(file);
+        let p = |run: &str, file: &str| data.path().join(run).join(file);
         // A stray file, bad metadata, a corrupt CSV, a missing CSV, an empty
         // CSV, a bad exclusion, and a mistyped run directory.
         std::fs::write(p("00001", "notes.txt"), "").unwrap();
@@ -131,11 +132,11 @@ mod tests {
         runs::write_csv_gz(&[], &mut empty).unwrap();
         std::fs::write(p("00006", runs::CSV), empty).unwrap();
         std::fs::write(
-            data.path.join(runs::EXCLUDED),
+            data.path().join(runs::EXCLUDED),
             "[[excluded]]\nrun = 4\nreason = \"x\"\n[[excluded]]\nrun = 77\nreason = \"y\"\n",
         )
         .unwrap();
-        std::fs::create_dir(data.path.join("0007")).unwrap();
+        std::fs::create_dir(data.path().join("0007")).unwrap();
 
         let problems = lint(&data).unwrap();
         let has = |needle: &str| problems.iter().any(|p| p.contains(needle));
@@ -148,7 +149,7 @@ mod tests {
         assert!(has("00005: expected exactly"), "{problems:#?}");
         assert!(has("00005: opening"), "{problems:#?}");
         assert!(has("00006: sightglass.csv.gz has no rows"), "{problems:#?}");
-        assert!(has("excludes run 77"), "{problems:#?}");
+        assert!(has("excludes run 00077"), "{problems:#?}");
         assert!(has("0007: not a five-digit run number"), "{problems:#?}");
         assert_eq!(problems.len(), 8, "{problems:#?}");
     }
@@ -158,7 +159,7 @@ mod tests {
         let tmp = fixture_copy();
         let data = DataDir::new(tmp.path());
         std::fs::write(
-            data.path.join(runs::EXCLUDED),
+            data.path().join(runs::EXCLUDED),
             "[[excluded]]\nrun = \"x\"\n",
         )
         .unwrap();

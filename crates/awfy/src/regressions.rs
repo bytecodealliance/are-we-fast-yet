@@ -16,11 +16,21 @@ use std::path::{Path, PathBuf};
 /// The event regressions are reported on.
 pub const VIRTUAL_CYCLES: &str = "virtual-cycles";
 
+/// Options for the `awfy regressions` command.
+#[derive(clap::Args)]
 pub struct Options {
+    /// The run to check, e.g. `00042` or `42`.
+    #[arg(long)]
     pub run: RunNumber,
-    /// Append the job summary here instead of stderr.
+    /// Append the job summary to this file instead of stderr, e.g.
+    /// `$GITHUB_STEP_SUMMARY`.
+    #[arg(long)]
     pub summary: Option<PathBuf>,
+    /// Write the issue title and body here, if there are regressions.
+    #[arg(long)]
     pub issue_dir: Option<PathBuf>,
+    /// A Wasmtime clone, for the issue's commit log.
+    #[arg(long)]
     pub wasmtime_repo: Option<PathBuf>,
 }
 
@@ -30,6 +40,7 @@ pub struct Options {
 pub enum Skip {
     /// The run itself is in `excluded.toml`.
     Excluded,
+    /// There is no earlier baseline to compare with.
     NoBaseline,
     /// What changed, from [`Fingerprint::diff`].
     FingerprintChanged(Vec<String>),
@@ -52,25 +63,38 @@ impl std::fmt::Display for Skip {
     }
 }
 
+/// The result of an `awfy regressions` run.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum Outcome {
+    /// The regression comparison was skipped.
     Skipped {
+        /// The number of the benchmark run that was skipped.
         run: RunNumber,
+        /// The baseline benchmark run's number, if any.
         baseline: Option<RunNumber>,
+        /// The reason it was skipped.
         reason: Skip,
     },
+    /// The regression comparison's report.
     Compared(Report),
 }
 
+/// A report on a regression comparison between two runs.
 #[derive(Clone, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Report {
+    /// The baseline benchmark run's number.
     pub baseline: RunNumber,
+    /// The benchmark run's number that was compared to the baseline.
     pub run: RunNumber,
+    /// The baseline's Wasmtime commit.
     pub baseline_commit: String,
+    /// The Wasmtime commit for the run being compared to baseline.
     pub commit: String,
+    /// The significance level we used to test for regressions.
     pub significance_level: f64,
+    /// The minimum relative change required for reporting a regression.q
     pub min_relative_change: f64,
     /// Virtual-cycles regressions, Geomean first, then largest first.
     pub regressions: Vec<Change>,
@@ -87,26 +111,36 @@ pub struct Report {
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Change {
+    /// The Wasm benchmark that changed.
     pub benchmark: String,
+    /// The phase that changed.
     #[serde(serialize_with = "display")]
     pub phase: Phase,
+    /// The event that changed.
     pub event: String,
+    /// The baseline run's mean count.
     pub old_mean: f64,
+    /// The new run's mean count.
     pub new_mean: f64,
     /// `(new - old) / old`.
     pub relative_change: f64,
     /// `new / old` for increases and `old / new` for decreases, so always at
     /// least 1, with its confidence interval's half width.
     pub ratio: f64,
+    /// The ratio's confidence interval.
     pub ratio_ci: f64,
 }
 
 impl Change {
+    /// Is this change an increase or decrease?
     pub fn is_increase(&self) -> bool {
         self.relative_change > 0.0
     }
 
-    fn from_effect_size(e: &EffectSize<'_>) -> Self {
+    /// Engine `a` must be named `baseline` and engine `b` named `run`.
+    fn from_effect_size(e: &EffectSize<'_>, baseline: &str, run: &str) -> Self {
+        assert_eq!(e.a_engine.name, baseline);
+        assert_eq!(e.b_engine.name, run);
         let (ratio, ratio_ci) = if e.b_mean >= e.a_mean {
             e.b_speed_up_over_a()
         } else {
@@ -133,10 +167,12 @@ impl Change {
     }
 }
 
-fn display<T: std::fmt::Display, S: Serializer>(t: &T, s: S) -> Result<S::Ok, S::Error> {
+/// Serialize with `Display`, e.g. for a `Timestamp` in JSON.
+pub(crate) fn display<T: std::fmt::Display, S: Serializer>(t: &T, s: S) -> Result<S::Ok, S::Error> {
     s.collect_str(t)
 }
 
+/// Run `awfy regressions` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
     let config = Config::load(root)?;
     let data = DataDir::new(root);
@@ -258,12 +294,10 @@ pub fn compare_measurements(
     let mut speedups = Vec::new();
     let mut others = Vec::new();
     for e in &effect_sizes {
-        assert_eq!(e.a_engine.name, a);
-        assert_eq!(e.b_engine.name, b);
         if !e.is_significant() {
             continue;
         }
-        let change = Change::from_effect_size(e);
+        let change = Change::from_effect_size(e, &a, &b);
         if change.relative_change.abs() < min {
             continue;
         }
@@ -375,6 +409,7 @@ fn percent(x: f64) -> String {
     format!("{}%", x * 100.0)
 }
 
+/// Get a string describing the given ratio `x` as a signed percent.
 pub fn signed_percent(x: f64) -> String {
     format!("{:+.2}%", x * 100.0)
 }
@@ -393,7 +428,12 @@ mod tests {
     }
 
     fn compare_fixture(run: u32) -> Outcome {
-        compare(&DataDir::new(&fixtures()), &config(), RunNumber(run)).unwrap()
+        compare(
+            &DataDir::new(&fixtures()),
+            &config(),
+            RunNumber::new(run).unwrap(),
+        )
+        .unwrap()
     }
 
     /// The JSON with floats at 6 significant digits, so last-bit differences
@@ -444,7 +484,12 @@ mod tests {
 
     #[test]
     fn missing_run() {
-        assert!(compare(&DataDir::new(&fixtures()), &config(), RunNumber(99)).is_err());
+        assert!(compare(
+            &DataDir::new(&fixtures()),
+            &config(),
+            RunNumber::new(99).unwrap()
+        )
+        .is_err());
     }
 
     #[test]
@@ -453,7 +498,7 @@ mod tests {
         assert_eq!(
             skip_reason(compare_fixture(5)),
             (
-                Some(RunNumber(3)),
+                Some(RunNumber::new(3).unwrap()),
                 Skip::FingerprintChanged(vec!["valgrind 3.22.0 -> 3.24.0".into()])
             )
         );
@@ -464,16 +509,19 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let data = DataDir::new(tmp.path());
         for run in ["00001", "00002"] {
-            std::fs::create_dir_all(data.path.join(run)).unwrap();
+            std::fs::create_dir_all(data.path().join(run)).unwrap();
             std::fs::copy(
                 fixtures().join("benchmark-data/00001/metadata.toml"),
-                data.path.join(run).join("metadata.toml"),
+                data.path().join(run).join("metadata.toml"),
             )
             .unwrap();
         }
         assert_eq!(
-            skip_reason(compare(&data, &config(), RunNumber(2)).unwrap()),
-            (Some(RunNumber(1)), Skip::SameCommit("1".repeat(40)))
+            skip_reason(compare(&data, &config(), RunNumber::new(2).unwrap()).unwrap()),
+            (
+                Some(RunNumber::new(1).unwrap()),
+                Skip::SameCommit("1".repeat(40))
+            )
         );
     }
 
@@ -570,8 +618,8 @@ mod tests {
         meta.wasmtime.commit = "f".repeat(40);
         compare_measurements(
             &config(),
-            (RunNumber(1), &old_meta, old),
-            (RunNumber(2), &meta, new),
+            (RunNumber::new(1).unwrap(), &old_meta, old),
+            (RunNumber::new(2).unwrap(), &meta, new),
         )
         .unwrap()
     }

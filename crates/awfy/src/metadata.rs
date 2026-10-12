@@ -9,51 +9,74 @@ use std::path::Path;
 /// The only `schema` this version of `awfy` reads and writes.
 pub const SCHEMA: u32 = 1;
 
+/// `metadata.toml`: recorded metadata about a benchmark run.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Metadata {
+    /// The `metadata.toml` schema version.
     pub schema: u32,
+    /// When the benchmark run started.
     pub started: Timestamp,
+    /// When the benchmark run finished.
     pub finished: Timestamp,
+    /// The Wasmtime commit used.
     pub wasmtime: Wasmtime,
+    /// The sightglass commit and benchmark suite used.
     pub sightglass: Sightglass,
+    /// The version of this repo used.
     pub are_we_fast_yet: AreWeFastYet,
+    /// The benchmark runner's environment and tools installed.
     pub environment: Environment,
+    /// The configuration used to run the benchmarks.
     pub config: RunConfig,
     /// Wasm path to a short reason, for benchmarks with no rows in the CSV.
     #[serde(default)]
     pub failures: BTreeMap<String, String>,
 }
 
+/// Wasmtime metadata.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Wasmtime {
+    /// The Wasmtime commit.
     pub commit: String,
     /// Committer date, the x axis of the trend plots.
     pub commit_date: Timestamp,
 }
 
+/// Sightglass metadata.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Sightglass {
+    /// The sightglass commit.
     pub commit: String,
+    /// The sightglass `.suite` file used (relative to the sightglass repo's
+    /// root).
     pub suite: String,
 }
 
+/// Metadata about this repo.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct AreWeFastYet {
+    /// The AWFY commit.
     pub commit: String,
+    /// The workflow run that kicked this benchmark run off, if any.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub workflow_run: Option<String>,
 }
 
+/// Metadata about the benchmark runner environment and its tools.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Environment {
+    /// The version of valgrind installed.
     pub valgrind: String,
+    /// The version of `rustc` installed.
     pub rustc: String,
+    /// The runner's `uname -a`.
     pub uname: String,
+    /// The runner's ISA and vendor details.
     pub cpu: String,
 }
 
@@ -61,17 +84,21 @@ pub struct Environment {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct RunConfig {
+    /// The number of benchmark processes to run.
     pub processes: u32,
+    /// The engine flags passed into sightglass.
     pub engine_flags: String,
 }
 
 impl Metadata {
+    /// Read and parse the metadata file at the given path.
     pub fn load(path: &Path) -> Result<Self> {
         let text =
             std::fs::read_to_string(path).with_context(|| format!("reading {}", path.display()))?;
         Self::parse(&text).with_context(|| format!("parsing {}", path.display()))
     }
 
+    /// Parse a metadata file from string.
     pub fn parse(text: &str) -> Result<Self> {
         // Check the schema first, so a future schema gets a clear error rather
         // than a confusing one about its fields.
@@ -86,6 +113,7 @@ impl Metadata {
         Ok(toml::from_str(text)?)
     }
 
+    /// Serialize this metadata into TOML.
     pub fn to_toml(&self) -> Result<String> {
         Ok(toml::to_string(self)?)
     }
@@ -118,6 +146,7 @@ impl Metadata {
 pub struct Timestamp(pub jiff::Timestamp);
 
 impl Timestamp {
+    /// Get a timestamp of the current time.
     pub fn now() -> Self {
         // Whole seconds: sub-second precision is noise in the metadata.
         Self(jiff::Timestamp::from_second(jiff::Timestamp::now().as_second()).unwrap())

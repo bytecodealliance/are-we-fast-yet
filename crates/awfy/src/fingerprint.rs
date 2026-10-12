@@ -3,15 +3,21 @@
 
 use crate::metadata::{Metadata, RunConfig};
 
+/// A metadata fingerprint of the benchmarking environment and tools.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Fingerprint {
+    /// The sightglass commit.
     pub sightglass: String,
+    /// The valgrind version.
     pub valgrind: String,
+    /// The rustc version.
     pub rustc: String,
+    /// The configuration used when running the benchmarks.
     pub config: RunConfig,
 }
 
 impl Fingerprint {
+    /// Create the fingerprint of the given benchmark metadata.
     pub fn of(metadata: &Metadata) -> Self {
         Self {
             sightglass: metadata.sightglass.commit.clone(),

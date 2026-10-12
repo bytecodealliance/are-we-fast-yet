@@ -4,23 +4,33 @@
 
 use crate::fingerprint::Fingerprint;
 use crate::metadata::{Metadata, Timestamp};
-use crate::regressions::VIRTUAL_CYCLES;
+use crate::regressions::{display, VIRTUAL_CYCLES};
 use crate::runs::{DataDir, RunNumber};
 use crate::slug::slug;
-use anyhow::{Context, Result, bail};
+use anyhow::{bail, Context, Result};
 use serde::{Serialize, Serializer};
 use sightglass_analysis::geomean::{self, GEOMEAN};
 use sightglass_data::{Measurement, Phase};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 
+/// The current schema version.
+///
+/// Bump on breaking changes.
 pub const SCHEMA: u32 = 1;
 
+/// Options for the `awfy site` command.
+#[derive(clap::Args)]
 pub struct Options {
+    /// Output directory. Removed and recreated.
+    #[arg(long)]
     pub out: PathBuf,
-    /// The static files to copy. Defaults to `<root>/site`.
+    /// Static files to copy instead of `<root>/site`.
+    #[arg(long)]
     pub site: Option<PathBuf>,
-    /// The `generated` timestamp. Defaults to `$SOURCE_DATE_EPOCH`, then now.
+    /// The `generated` timestamp, RFC 3339. Defaults to
+    /// `$SOURCE_DATE_EPOCH`, then the current time.
+    #[arg(long)]
     pub now: Option<Timestamp>,
 }
 
@@ -33,42 +43,62 @@ const NOT_DEPLOYED: &[&str] = &[
     "tests",
 ];
 
+/// The index file summarizing the benchmark data available.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct Index {
+    /// The schema version.
     pub schema: u32,
-    pub generated: String,
+    /// When this index was generated.
+    #[serde(serialize_with = "display")]
+    pub generated: Timestamp,
     /// `owner/name` of this repository, for links to raw data.
     pub repo: String,
+    /// The benchmark runs available.
     pub runs: Vec<IndexRun>,
+    /// The benchmarks available.
     pub benchmarks: Vec<String>,
+    /// The benchmark phases available.
     pub phases: Vec<String>,
+    /// The benchmark metrics available.
     pub metrics: Vec<String>,
 }
 
+/// A summary of a benchmarking run inside the index file.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct IndexRun {
+    /// The benchmarking run's number.
     pub run: RunNumber,
+    /// The Wasmtime commit.
     pub wasmtime: String,
-    pub date: String,
+    /// The Wasmtime commit's date.
+    #[serde(serialize_with = "display")]
+    pub date: Timestamp,
+    /// The fingerprint change for this run, if any.
     pub fingerprint_change: Option<String>,
 }
 
+/// The benchmark data series for a particular Wasm benchmark.
 #[derive(Serialize)]
 pub struct BenchmarkSeries {
+    /// The Wasm benchmark.
     pub benchmark: String,
-    /// Phase, then metric, to `[run, mean]` points in run order.
+    /// A map `phase -> metric -> [run, mean]` points in run order.
     pub series: BTreeMap<String, BTreeMap<String, Vec<(RunNumber, Num)>>>,
 }
 
-/// `data/runs/NNNNN.json`, for `run.html`.
+/// The data for a particular benchmark run for `run.html`.
+///
+/// This is `data/runs/NNNNN.json`.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RunPage {
+    /// The benchmark run number.
     pub run: RunNumber,
-    /// The previous visible run, which changes are relative to.
+    /// The previous run, which changes are relative to.
     pub previous: Option<RunNumber>,
+    /// The fingerprint changes, if any.
     pub fingerprint_change: Option<String>,
     /// `metadata.toml`, with timestamps as RFC 3339 strings.
     pub metadata: serde_json::Value,
@@ -76,13 +106,18 @@ pub struct RunPage {
     pub changes: Vec<RunChange>,
 }
 
+/// The summarized change for a particular run, compared to its previous
+/// baseline.
 #[derive(Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub struct RunChange {
+    /// The Wasm benchmark that changed.
     pub benchmark: String,
+    /// The benchmark phase that changed.
     pub phase: String,
+    /// The mean of this run, after the change.
     pub mean: Num,
-    /// The mean in the previous run, if it has this benchmark.
+    /// The mean of the previous run.
     pub previous: Option<Num>,
     /// `(mean - previous) / previous`.
     pub change: Option<Num>,
@@ -90,9 +125,14 @@ pub struct RunChange {
 
 /// A number written compactly: an integer when integral, otherwise rounded
 /// to `digits` decimal places.
+///
+/// Only for use in the index and other summaries that get used in the UI. The
+/// raw sightglass data should always be stored in full precision.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Num {
+    /// The number value.
     pub value: f64,
+    /// The number of digits to round to.
     pub digits: i32,
 }
 
@@ -128,6 +168,7 @@ struct Run {
     means: BTreeMap<(String, Phase, String), f64>,
 }
 
+/// Run `awfy site` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
     let site = options.site.clone().unwrap_or_else(|| root.join("site"));
     let now = match options.now {
@@ -143,7 +184,7 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
     build(&DataDir::new(root), &config, &site, &options.out, now)
 }
 
-pub fn build(
+fn build(
     data: &DataDir,
     config: &crate::config::Config,
     site: &Path,
@@ -280,7 +321,7 @@ fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, St
     let mut files = Vec::new();
     let index = Index {
         schema: SCHEMA,
-        generated: now.to_string(),
+        generated: now,
         repo: repo.to_string(),
         runs: runs
             .iter()
@@ -288,7 +329,7 @@ fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, St
             .map(|(run, change)| IndexRun {
                 run: run.number,
                 wasmtime: run.metadata.wasmtime.commit.clone(),
-                date: run.metadata.wasmtime.commit_date.to_string(),
+                date: run.metadata.wasmtime.commit_date,
                 fingerprint_change: change.clone(),
             })
             .collect(),
@@ -493,7 +534,8 @@ mod tests {
             .collect();
         assert_eq!(runs, [1, 2, 3, 5]);
         // pulldown-cmark is missing from 00006, so has no point there.
-        let points = &files["benchmarks/pulldown-cmark-benchmark.json"]["series"]["execution"]["virtual-cycles"];
+        let points = &files["benchmarks/pulldown-cmark-benchmark.json"]["series"]["execution"]
+            ["virtual-cycles"];
         assert_eq!(points.as_array().unwrap().len(), 4);
     }
 
@@ -510,7 +552,7 @@ mod tests {
     #[test]
     fn slug_collisions_are_errors() {
         let mut run = Run {
-            number: RunNumber(1),
+            number: RunNumber::new(1).unwrap(),
             metadata: crate::metadata::tests::example(),
             means: BTreeMap::new(),
         };

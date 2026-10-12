@@ -35,5 +35,5 @@ cargo run -p awfy -- --root crates/awfy/tests/fixtures site --site site --out _s
 ```sh
 cd site
 node --test tests/unit
-npm install && npx playwright install chromium && npx playwright test
+npm ci && npx playwright install chromium && npx playwright test
 ```

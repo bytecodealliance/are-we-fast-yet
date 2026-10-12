@@ -2,13 +2,13 @@ mod common;
 
 use anyhow::Result;
 use awfy::metadata::Timestamp;
-use awfy::record::{Options, Probe, record};
+use awfy::record::{record, Options, SystemMethods};
 use awfy::runs::{DataDir, RunNumber};
 use std::path::Path;
 
 struct FakeProbe;
 
-impl Probe for FakeProbe {
+impl SystemMethods for FakeProbe {
     fn command(&self, _cwd: &Path, program: &str, _args: &[&str]) -> Result<String> {
         Ok(match program {
             "git" => "f".repeat(40),
@@ -48,7 +48,7 @@ fn run_then_record() {
         processes: None,
     };
     let run = record(root.path(), &options, &FakeProbe).unwrap();
-    assert_eq!(run, RunNumber(7));
+    assert_eq!(run, RunNumber::new(7).unwrap());
 
     let data = DataDir::new(root.path());
     assert_eq!(data.runs().unwrap().last(), Some(&run));

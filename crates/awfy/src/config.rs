@@ -4,14 +4,19 @@ use anyhow::{Context, Result};
 use serde::Deserialize;
 use std::path::Path;
 
+/// The struct for the top-level `config.toml` file.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Config {
+    /// Benchmarking config options.
     pub benchmark: Benchmark,
+    /// Statistical regression config options.
     pub regressions: Regressions,
+    /// Generated site config options.
     pub site: Site,
 }
 
+/// Benchmarking config options.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Benchmark {
@@ -23,15 +28,19 @@ pub struct Benchmark {
     pub engine_flags: String,
 }
 
+/// Statistical regressions config options.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Regressions {
+    /// The significance level to test at.
     pub significance_level: f64,
+    /// The minimum relative change to be considered significant.
     pub min_relative_change: f64,
     /// `owner/name` of the repository regression issues are filed on.
     pub issue_repo: String,
 }
 
+/// Config options for site generation.
 #[derive(Clone, Debug, Deserialize, PartialEq)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct Site {

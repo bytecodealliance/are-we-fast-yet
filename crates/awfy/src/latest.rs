@@ -20,6 +20,7 @@ pub fn latest(root: &Path, field: &str) -> Result<Option<String>> {
     }
 }
 
+/// Print the latest value of the given field, if any.
 pub fn run(root: &Path, field: &str) -> Result<()> {
     if let Some(value) = latest(root, field)? {
         println!("{value}");
