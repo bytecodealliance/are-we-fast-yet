@@ -166,8 +166,9 @@ fn run_with(
             })
         })
         .collect();
+
     // Longest first, so a long unit doesn't start last and stretch the run.
-    // Stable, so without estimates this keeps suite order.
+    // Stable sort, so without estimates this keeps suite order.
     units.sort_by_key(|u| std::cmp::Reverse(estimated_duration(u)));
 
     let total = units.len();
@@ -242,6 +243,8 @@ pub fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> 
         "--measure",
         "callgrind",
         "--processes",
+        "1",
+        "--iterations-per-process",
         "1",
         "--raw",
         "--output-format",
