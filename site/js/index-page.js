@@ -30,6 +30,7 @@ start(async () => {
   }
 
   const geomeanBox = document.getElementById("geomean");
+  const geomeanNote = document.getElementById("geomean-note");
   const grid = document.getElementById("grid");
   let plots = [];
 
@@ -37,6 +38,7 @@ start(async () => {
     plots.forEach((p) => p.destroy());
     plots = [];
     geomeanBox.replaceChildren();
+    geomeanNote.hidden = true;
     grid.replaceChildren();
 
     const onZoom = (from, to) => {
@@ -52,6 +54,7 @@ start(async () => {
       if (series.xs.length === 0) {
         geomeanBox.append(el("p", { class: "muted" }, "No Geomean data for this phase and metric."));
       } else {
+        geomeanNote.hidden = false;
         plots.push(
           plot(geomeanBox, series, {
             width: geomeanBox.clientWidth,

@@ -43,11 +43,12 @@ start(async () => {
     plots = [];
     box.replaceChildren();
     for (const phase of index.phases) {
+      const series = joinSeries(index, seriesPoints(json, phase, state.metric));
       const section = el("section", {}, el("h2", {}, phase));
       const plotBox = el("div", { class: "plot" });
+      if (series.xs.length > 0) section.append(el("p", { class: "muted" }, "Lower is better"));
       section.append(plotBox);
       box.append(section);
-      const series = joinSeries(index, seriesPoints(json, phase, state.metric));
       if (series.xs.length === 0) {
         plotBox.append(el("p", { class: "muted" }, "No data."));
         continue;
