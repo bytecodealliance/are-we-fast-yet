@@ -1,9 +1,11 @@
 # Architecture
 
-A daily GitHub Actions run benchmarks Wasmtime `main` under Sightglass's
-callgrind measure, commits the raw results, files an issue on
+A GitHub Actions run every three hours benchmarks Wasmtime `main` under
+Sightglass's callgrind measure, commits the raw results, files an issue on
 `bytecodealliance/wasmtime` for significant virtual-cycles regressions, and
-deploys trend plots to GitHub Pages.
+deploys trend plots to GitHub Pages. A run that finds Wasmtime `main`
+unchanged since the last one exits early, so the schedule sets how soon a new
+commit is measured, not how many runs are recorded.
 
 Non-goals: wall-clock or `perf` measurements (runners are too noisy), dedicated
 hardware or external services, benchmarking PRs, and backfilling history.
@@ -38,6 +40,8 @@ hardware or external services, benchmarking PRs, and backfilling history.
 * **Determinism.** Callgrind variance is near zero, so tiny changes are
   significant. A minimum effect size filters them (see
   [regressions.md](regressions.md)).
-* **Repo growth.** Roughly 20-40 MiB of data per year.
+* **Repo growth.** Roughly 25 KiB per recorded run. At most 8 runs a day, so
+  up to roughly 75 MiB per year if `main` changes before every run; less in
+  practice, since unchanged commits are skipped.
 * **Cron auto-disable.** GitHub disables cron workflows after 60 days without
-  repo activity. Daily data commits count.
+  repo activity. Recorded data commits count.

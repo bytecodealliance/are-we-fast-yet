@@ -1,8 +1,10 @@
 # Workflows
 
-* `benchmark.yml`: daily run, record, push, and file regressions. A
-  `concurrency` group keeps one writer, so run numbers allocated at record time
-  never collide. Filing comes after the push, so its failure never loses data.
+* `benchmark.yml`: run, record, push, and file regressions, every three
+  hours. A `concurrency` group keeps one writer, so run numbers allocated at
+  record time never collide, and a run that overruns its slot queues the next
+  rather than racing it. Filing comes after the push, so its failure never
+  loses data.
 * `pages.yml`: build and deploy the site. `benchmark.yml` calls it directly,
   since pushes made with `GITHUB_TOKEN` don't trigger workflows. Pages' source
   must be "GitHub Actions".

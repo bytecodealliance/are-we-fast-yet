@@ -1,6 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fingerprintMarkers, formatChange, formatCount, formatTicks, relativeToFirstVisible } from "../../js/transform.js";
+import {
+  fingerprintMarkers,
+  formatChange,
+  formatCount,
+  formatInstant,
+  formatTicks,
+  relativeToFirstVisible,
+} from "../../js/transform.js";
 
 test("relative to the first visible point", () => {
   const xs = [1, 2, 3, 4];
@@ -22,6 +29,16 @@ test("fingerprint markers sit between runs", () => {
     { x: Date.parse("2026-10-02T00:00:00Z") / 1000, label: "valgrind 3.22.0 -> 3.24.0", run: 2 },
   ]);
   assert.deepEqual(fingerprintMarkers([]), []);
+});
+
+test("instants keep the time of day", () => {
+  // Runs land several times a day, so two runs from one day must not get the
+  // same label.
+  const morning = Date.parse("2026-10-01T01:41:05Z") / 1000;
+  const evening = Date.parse("2026-10-01T22:17:00Z") / 1000;
+  assert.equal(formatInstant(morning), "2026-10-01 01:41Z");
+  assert.equal(formatInstant(evening), "2026-10-01 22:17Z");
+  assert.notEqual(formatInstant(morning), formatInstant(evening));
 });
 
 test("formatting", () => {

@@ -2,8 +2,13 @@ name: Benchmark
 
 on:
   schedule:
-    # Daily at 03:17 UTC.
-    - cron: "17 3 * * *"
+    # Every three hours, at 17 past: 00:17, 03:17, ... 21:17 UTC.
+    #
+    # If, for some bizarre reason, the job takes longer than three hours, then
+    # it is queued. At most one pending job can be queued at a time, and queuing
+    # a new job cancels the previously queued one, so we don't need to worry
+    # about a ton of jobs queueing up.
+    - cron: "17 */3 * * *"
   workflow_dispatch:
     inputs:
       force:
@@ -96,7 +101,8 @@ jobs:
         uses: ./.github/actions/install-valgrind
 
       # Sightglass's build script fetches into BUILD_DIR's existing clone and
-      # reuses its `target/`, so caching it makes daily builds incremental.
+      # reuses its `target/`, so caching it makes successive builds
+      # incremental.
       - name: Restore Wasmtime build
         if: steps.check.outputs.skip == 'false'
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0

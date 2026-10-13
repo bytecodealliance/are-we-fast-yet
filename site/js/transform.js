@@ -35,6 +35,15 @@ export function fingerprintMarkers(runs) {
   return markers;
 }
 
+/**
+ * A point's UTC timestamp, as `2026-10-01 01:41Z`. Runs can land several
+ * times a day, so a bare date would label several points identically; the
+ * data is all UTC, so the label says so rather than shifting to local time.
+ */
+export function formatInstant(seconds) {
+  return new Date(seconds * 1000).toISOString().slice(0, 16).replace("T", " ") + "Z";
+}
+
 /** `1234567` as `1.23M`, with `digits` significant digits. */
 export function formatCount(n, digits = 3) {
   if (n === null || n === undefined) return "";

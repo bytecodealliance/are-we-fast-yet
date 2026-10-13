@@ -2,7 +2,7 @@
 // environment-change markers, hover details, click-through to runs, and
 // drag-to-zoom kept in the URL.
 
-import { formatChange, formatCount, formatTicks, relativeToFirstVisible } from "./transform.js";
+import { formatChange, formatCount, formatInstant, formatTicks, relativeToFirstVisible } from "./transform.js";
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -30,6 +30,10 @@ export function plot(container, series, options) {
     width,
     height,
     legend: { show: false },
+    // Timestamps are UTC, so label the axis in UTC too; otherwise a
+    // viewer's local offset can show two runs from one UTC day as two
+    // different days (or the reverse).
+    tzDate: (ts) => uPlot.tzDate(new Date(ts * 1000), "UTC"),
     cursor: {
       drag: { x: !small, y: false, setScale: !small },
       points: { size: 8 },
@@ -41,7 +45,7 @@ export function plot(container, series, options) {
         // ranges are kept as is, so they survive a reload unchanged.
         range: (u, min, max) => {
           if (min !== series.xs[0] || max !== series.xs[series.xs.length - 1]) return [min, max];
-          const pad = Math.max((max - min) * 0.02, 3600);
+          const pad = Math.max((max - min) * 0.02, 900);
           return [min - pad, max + pad];
         },
       },
@@ -150,8 +154,8 @@ function updateTooltip(u, tooltip, series, ys, format) {
     return;
   }
   const run = String(series.runs[i]).padStart(5, "0");
-  const date = new Date(series.xs[i] * 1000).toISOString().slice(0, 10);
-  tooltip.textContent = `${format(ys[i])} · run ${run} · ${series.shas[i].slice(0, 12)} · ${date}`;
+  const when = formatInstant(series.xs[i]);
+  tooltip.textContent = `${format(ys[i])} · run ${run} · ${series.shas[i].slice(0, 12)} · ${when}`;
   tooltip.hidden = false;
   const left = u.valToPos(series.xs[i], "x");
   const top = u.valToPos(ys[i], "y");

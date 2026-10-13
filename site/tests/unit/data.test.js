@@ -21,6 +21,27 @@ test("joins points with the index by commit date", () => {
   assert.deepEqual(joinSeries(index, undefined).xs, []);
 });
 
+test("same-day runs stay in run order", () => {
+  // Several runs a day share a date and can even share a commit timestamp;
+  // ties break by run number so the series reads oldest-first either way.
+  const sameDay = {
+    benchmarks: ["Geomean"],
+    runs: [
+      { run: 2, wasmtime: "b".repeat(40), date: "2026-10-01T12:00:00Z", "fingerprint-change": null },
+      { run: 1, wasmtime: "a".repeat(40), date: "2026-10-01T03:00:00Z", "fingerprint-change": null },
+      { run: 3, wasmtime: "c".repeat(40), date: "2026-10-01T12:00:00Z", "fingerprint-change": null },
+    ],
+  };
+  const series = joinSeries(sameDay, [[1, 10], [2, 20], [3, 30]]);
+  assert.deepEqual(series.runs, [1, 2, 3]);
+  assert.deepEqual(series.ys, [10, 20, 30]);
+  assert.deepEqual(series.xs, [
+    Date.parse("2026-10-01T03:00:00Z") / 1000,
+    Date.parse("2026-10-01T12:00:00Z") / 1000,
+    Date.parse("2026-10-01T12:00:00Z") / 1000,
+  ]);
+});
+
 test("series lookup", () => {
   const json = { series: { execution: { "virtual-cycles": [[1, 5]] } } };
   assert.deepEqual(seriesPoints(json, "execution", "virtual-cycles"), [[1, 5]]);
