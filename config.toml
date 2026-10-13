@@ -1,8 +1,8 @@
 [benchmark]
 # Sightglass suite to run, relative to `sightglass/`.
 suite = "benchmarks/default.suite"
-# Callgrind processes per benchmark. Each is its own work unit.
-processes = 3
+# Callgrind iterations per benchmark. Each is its own work unit.
+iterations = 3
 # Pinned Cranelift ISA flags. x86-64-v3, the newest level Valgrind's synthetic
 # CPU supports. An explicit `--target` disables native feature inference, so
 # this is the complete set. See docs/architecture.md.

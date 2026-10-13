@@ -72,7 +72,7 @@
     },
     "config": {
       "engine-flags": "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2",
-      "processes": 3
+      "iterations": 3
     },
     "environment": {
       "cpu": "AMD EPYC 7763 64-Core Processor",

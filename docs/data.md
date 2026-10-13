@@ -7,8 +7,8 @@
   site and from regression baselines.
 * A run with some failed benchmarks is still committed. Its failures are listed
   in metadata.
-* The CSV is Sightglass's raw output with `engine`, `wasm`, and `process`
-  normalized so it is stable and reproducible across runs.
+* The CSV is Sightglass's raw output with `engine` and `wasm` normalized so
+  it is stable and reproducible across runs.
 
 ## Environment fingerprint
 

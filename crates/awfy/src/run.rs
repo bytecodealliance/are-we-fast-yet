@@ -1,6 +1,6 @@
 //! `awfy run`: run the suite under callgrind as many small, independent
-//! `sightglass-cli` invocations, `--jobs` at a time. Each (benchmark, process
-//! index) unit writes its own CSV to the output directory. See
+//! `sightglass-cli` invocations, `--jobs` at a time. Each (benchmark,
+//! iteration index) unit writes its own CSV to the output directory. See
 //! `docs/architecture.md`.
 
 use crate::config::Config;
@@ -29,22 +29,22 @@ pub struct Options {
     /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
     #[arg(long)]
     suite: Option<PathBuf>,
-    /// Processes per benchmark instead of `config.toml`'s. Recorded in
-    /// metadata by `awfy record --processes`.
+    /// Iterations per benchmark instead of `config.toml`'s. Recorded in
+    /// metadata by `awfy record --iterations`.
     #[arg(long)]
-    processes: Option<u32>,
+    iterations: Option<u32>,
     /// Units to run at once. Defaults to the available parallelism.
     #[arg(long)]
     jobs: Option<usize>,
 }
 
-/// One `sightglass-cli` invocation: a benchmark in one process.
+/// One `sightglass-cli` invocation: one iteration of a benchmark.
 #[derive(Clone, Debug, PartialEq, Eq)]
 struct Unit {
     /// Relative to `sightglass/benchmarks/`, or absolute if outside it.
     wasm: PathBuf,
-    /// Which `sightglass-cli` process index this unit is.
-    process: u32,
+    /// Which iteration of its benchmark this unit is.
+    iteration: u32,
 }
 
 impl Unit {
@@ -52,9 +52,9 @@ impl Unit {
     fn csv_name(&self) -> String {
         let wasm = self.wasm.to_string_lossy();
         let wasm = wasm.trim_start_matches('/').replace('/', "__");
-        // The zero-padded process index keeps a benchmark's files in process
-        // order when sorted.
-        format!("{wasm}.{:03}.csv", self.process)
+        // The zero-padded iteration index keeps a benchmark's files in
+        // iteration order when sorted.
+        format!("{wasm}.{:03}.csv", self.iteration)
     }
 }
 
@@ -98,8 +98,8 @@ impl Runner for ProcessRunner {
 /// Run `awfy run` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
     let mut config = Config::load(root)?;
-    if let Some(processes) = options.processes {
-        config.benchmark.processes = processes;
+    if let Some(iterations) = options.iterations {
+        config.benchmark.iterations = iterations;
     }
     let failures = run_with(root, &config, &options, &ProcessRunner)?;
     if !failures.is_empty() {
@@ -160,9 +160,9 @@ fn run_with(
     let mut units: Vec<Unit> = wasms
         .iter()
         .flat_map(|wasm| {
-            (0..config.benchmark.processes).map(|process| Unit {
+            (0..config.benchmark.iterations).map(|iteration| Unit {
                 wasm: wasm.clone(),
-                process,
+                iteration,
             })
         })
         .collect();
@@ -173,9 +173,9 @@ fn run_with(
 
     let total = units.len();
     log::info!(
-        "running {total} units ({} benchmarks x {} processes), {} at a time",
+        "running {total} units ({} benchmarks x {} iterations), {} at a time",
         wasms.len(),
-        config.benchmark.processes,
+        config.benchmark.iterations,
         jobs
     );
 
@@ -189,7 +189,7 @@ fn run_with(
             let Some((i, unit)) = queue.lock().unwrap().pop_front() else {
                 return Ok(());
             };
-            let name = format!("{} process {}", unit.wasm.display(), unit.process);
+            let name = format!("{} iteration {}", unit.wasm.display(), unit.iteration);
             log::info!("[{}/{total}] started {name}", i + 1);
             let unit_start = Instant::now();
             let csv = out.join(unit.csv_name());
@@ -242,9 +242,7 @@ fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> Vec<
         "benchmark",
         "--measure",
         "callgrind",
-        "--processes",
-        "1",
-        "--iterations-per-process",
+        "--iters",
         "1",
         "--raw",
         "--output-format",
@@ -293,16 +291,16 @@ fn short_reason(e: &anyhow::Error) -> String {
     }
 }
 
-/// One entry per benchmark, e.g. `"process 0: exit status: 1: boom; process
-/// 2: ..."`.
+/// One entry per benchmark, e.g. `"iteration 0: exit status: 1: boom;
+/// iteration 2: ..."`.
 fn merge_failures(mut failed: Vec<(Unit, String)>) -> BTreeMap<String, String> {
-    failed.sort_by_key(|(u, _)| (u.wasm.clone(), u.process));
+    failed.sort_by_key(|(u, _)| (u.wasm.clone(), u.iteration));
     let mut merged: BTreeMap<String, Vec<String>> = BTreeMap::new();
     for (unit, reason) in failed {
         merged
             .entry(unit.wasm.to_string_lossy().into_owned())
             .or_default()
-            .push(format!("process {}: {reason}", unit.process));
+            .push(format!("iteration {}: {reason}", unit.iteration));
     }
     merged
         .into_iter()
@@ -372,7 +370,7 @@ mod tests {
             r#"
             [benchmark]
             suite = "benchmarks/test.suite"
-            processes = 3
+            iterations = 3
             engine-flags = "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx"
             [regressions]
             significance-level = 0.01
@@ -408,7 +406,7 @@ mod tests {
             sightglass_cli: "sightglass-cli".into(),
             out: root.join("out"),
             suite: None,
-            processes: None,
+            iterations: None,
             jobs: Some(2),
         }
     }
@@ -438,7 +436,7 @@ mod tests {
             };
             let wasm = args.last().unwrap().to_str().unwrap();
             let csv = PathBuf::from(arg("--output-file"));
-            let process: u32 = csv
+            let iteration: u32 = csv
                 .to_str()
                 .unwrap()
                 .rsplit('.')
@@ -449,7 +447,7 @@ mod tests {
             if self
                 .fail
                 .iter()
-                .any(|&(w, p)| wasm.contains(w) && p == process)
+                .any(|&(w, i)| wasm.contains(w) && i == iteration)
             {
                 return Ok(Exit {
                     success: false,
@@ -460,8 +458,8 @@ mod tests {
             std::fs::write(
                 csv,
                 format!(
-                    "arch,engine,engine_flags,wasm,process,iteration,phase,event,count\n\
-                     x86_64,wasmtime,,{wasm},1,0,Execution,virtual-cycles,100\n"
+                    "arch,engine,engine_flags,wasm,phase,event,count\n\
+                     x86_64,wasmtime,,{wasm},Execution,virtual-cycles,100\n"
                 ),
             )
             .unwrap();
@@ -477,7 +475,7 @@ mod tests {
     fn command_lines() {
         let unit = Unit {
             wasm: "a/benchmark.wasm".into(),
-            process: 2,
+            iteration: 2,
         };
         assert_eq!(unit.csv_name(), "a__benchmark.wasm.002.csv");
         let args = command_line(
@@ -490,9 +488,7 @@ mod tests {
             "benchmark",
             "--measure",
             "callgrind",
-            "--processes",
-            "1",
-            "--iterations-per-process",
+            "--iters",
             "1",
             "--raw",
             "--output-format",
@@ -593,11 +589,11 @@ mod tests {
         let expected: BTreeMap<String, String> = [
             (
                 "a/benchmark.wasm".to_string(),
-                "process 0: exit status: 1: boom; process 2: exit status: 1: boom".to_string(),
+                "iteration 0: exit status: 1: boom; iteration 2: exit status: 1: boom".to_string(),
             ),
             (
                 "c/benchmark.wasm".to_string(),
-                "process 1: exit status: 1: boom".to_string(),
+                "iteration 1: exit status: 1: boom".to_string(),
             ),
         ]
         .into();

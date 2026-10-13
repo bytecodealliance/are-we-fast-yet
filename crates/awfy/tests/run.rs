@@ -33,7 +33,7 @@ fn run_writes_one_csv_per_unit() {
 
     let failures = std::fs::read_to_string(scratch.join("failures.toml")).unwrap();
     assert!(
-        failures.starts_with("\"b/benchmark.wasm\" = \"process 0: exit status: 1: Error: benchmark b/benchmark.wasm failed on purpose; process 1:"),
+        failures.starts_with("\"b/benchmark.wasm\" = \"iteration 0: exit status: 1: Error: benchmark b/benchmark.wasm failed on purpose; iteration 1:"),
         "{failures}"
     );
 

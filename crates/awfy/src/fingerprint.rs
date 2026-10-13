@@ -48,10 +48,10 @@ impl Fingerprint {
                 v.strip_prefix("rustc ")?.split_whitespace().next()
             }));
         }
-        if self.config.processes != other.config.processes {
+        if self.config.iterations != other.config.iterations {
             changes.push(format!(
-                "config.processes {} -> {}",
-                self.config.processes, other.config.processes
+                "config.iterations {} -> {}",
+                self.config.iterations, other.config.iterations
             ));
         }
         if self.config.engine_flags != other.config.engine_flags {
@@ -168,8 +168,8 @@ mod tests {
     #[test]
     fn config() {
         assert_eq!(
-            diff(|m| m.config.processes = 5),
-            ["config.processes 3 -> 5"]
+            diff(|m| m.config.iterations = 5),
+            ["config.iterations 3 -> 5"]
         );
         assert_eq!(
             diff(|m| m.config.engine_flags = "--target x86_64-unknown-linux-gnu -Cfoo".into()),
@@ -186,9 +186,9 @@ mod tests {
         assert_eq!(
             diff(|m| {
                 m.environment.valgrind = "valgrind-3.24.0".into();
-                m.config.processes = 1;
+                m.config.iterations = 1;
             }),
-            ["valgrind 3.22.0 -> 3.24.0", "config.processes 3 -> 1"]
+            ["valgrind 3.22.0 -> 3.24.0", "config.iterations 3 -> 1"]
         );
     }
 }

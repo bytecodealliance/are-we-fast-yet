@@ -33,9 +33,9 @@ pub struct Options {
     /// The suite passed to `awfy run --suite`, if any.
     #[arg(long)]
     pub suite: Option<String>,
-    /// The processes passed to `awfy run --processes`, if any.
+    /// The iterations passed to `awfy run --iterations`, if any.
     #[arg(long)]
-    pub processes: Option<u32>,
+    pub iterations: Option<u32>,
 }
 
 /// Everything `record` learns from outside the scratch directory, so it can be
@@ -159,7 +159,7 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
             cpu: probe.cpu(),
         },
         config: RunConfig {
-            processes: options.processes.unwrap_or(config.benchmark.processes),
+            iterations: options.iterations.unwrap_or(config.benchmark.iterations),
             engine_flags: config.benchmark.engine_flags.clone(),
         },
         failures,
@@ -178,9 +178,8 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
 
 /// Read every per-unit CSV in `scratch`, normalize, and sort.
 ///
-/// `process` becomes the unit's process index from its file name, since the
-/// OS pid is noise. `engine` becomes `wasmtime`, and `wasm` is made relative
-/// to `sightglass/benchmarks/`.
+/// `engine` becomes `wasmtime`, and `wasm` is made relative to
+/// `sightglass/benchmarks/`.
 fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
     let mut files: Vec<PathBuf> = std::fs::read_dir(scratch)
         .with_context(|| format!("reading {}", scratch.display()))?
@@ -191,7 +190,6 @@ fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
 
     let mut measurements = Vec::new();
     for file in files {
-        let process = process_index(&file)?;
         let rows = runs::read_csv(std::fs::File::open(&file)?)
             .with_context(|| format!("reading {}", file.display()))?;
         for mut m in rows {
@@ -199,29 +197,13 @@ fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
             m.wasm = normalize_wasm(&m.wasm)
                 .with_context(|| format!("in {}", file.display()))?
                 .into();
-            m.process = process;
             measurements.push(m);
         }
     }
-    measurements.sort_by(|a, b| {
-        (&a.wasm, a.process, a.iteration, a.phase, &a.event).cmp(&(
-            &b.wasm,
-            b.process,
-            b.iteration,
-            b.phase,
-            &b.event,
-        ))
-    });
+    // Stable, and files are read in sorted order, so equal keys keep their
+    // file order and the gzipped output stays byte-reproducible.
+    measurements.sort_by(|a, b| (&a.wasm, a.phase, &a.event).cmp(&(&b.wasm, b.phase, &b.event)));
     Ok(measurements)
-}
-
-/// The process index from a unit file name such as `a__benchmark.wasm.002.csv`.
-fn process_index(file: &Path) -> Result<u32> {
-    file.file_stem()
-        .and_then(|s| s.to_str())
-        .and_then(|s| s.rsplit_once('.'))
-        .and_then(|(_, n)| n.parse().ok())
-        .with_context(|| format!("no process index in file name {}", file.display()))
 }
 
 /// Make a wasm path relative to `sightglass/benchmarks/`: strip everything up
@@ -282,7 +264,7 @@ mod tests {
         }
     }
 
-    const HEADER: &str = "arch,engine,engine_flags,wasm,process,iteration,phase,event,count\n";
+    const HEADER: &str = "arch,engine,engine_flags,wasm,phase,event,count\n";
 
     /// A scratch dir with the given `(file name, rows)` and `failures.toml`.
     fn scratch(files: &[(&str, &str)], failures: &str) -> tempfile::TempDir {
@@ -299,20 +281,20 @@ mod tests {
             &[
                 (
                     "b__benchmark.wasm.001.csv",
-                    "x86_64,/tmp/libengine.so,-Cfoo,/home/r/sightglass/benchmarks/b/benchmark.wasm,4182,0,Execution,virtual-cycles,20\n\
-                     x86_64,/tmp/libengine.so,-Cfoo,/home/r/sightglass/benchmarks/b/benchmark.wasm,4182,0,Compilation,virtual-cycles,10\n",
+                    "x86_64,/tmp/libengine.so,-Cfoo,/home/r/sightglass/benchmarks/b/benchmark.wasm,Execution,virtual-cycles,20\n\
+                     x86_64,/tmp/libengine.so,-Cfoo,/home/r/sightglass/benchmarks/b/benchmark.wasm,Compilation,virtual-cycles,10\n",
                 ),
                 (
                     "a__a.wasm.000.csv",
-                    "x86_64,wasmtime,-Cfoo,a/a.wasm,77,0,Compilation,virtual-cycles,30\n\
-                     x86_64,wasmtime,-Cfoo,a/a.wasm,77,0,Compilation,instructions-retired,15\n",
+                    "x86_64,wasmtime,-Cfoo,a/a.wasm,Compilation,virtual-cycles,30\n\
+                     x86_64,wasmtime,-Cfoo,a/a.wasm,Compilation,instructions-retired,15\n",
                 ),
                 (
                     "b__benchmark.wasm.000.csv",
-                    "x86_64,wasmtime,-Cfoo,../../benchmarks/b/benchmark.wasm,99,0,Compilation,virtual-cycles,11\n",
+                    "x86_64,wasmtime,-Cfoo,../../benchmarks/b/benchmark.wasm,Compilation,virtual-cycles,11\n",
                 ),
             ],
-            "\"c/c.wasm\" = \"process 0: exit status: 1\"\n",
+            "\"c/c.wasm\" = \"iteration 0: exit status: 1\"\n",
         )
     }
 
@@ -324,7 +306,7 @@ mod tests {
             started: "2026-10-10T03:17:00Z".parse().unwrap(),
             workflow_run: None,
             suite: None,
-            processes: None,
+            iterations: None,
         }
     }
 
@@ -379,19 +361,20 @@ mod tests {
             .iter()
             .map(|m| {
                 format!(
-                    "{} {} {} {} {} {} {}",
-                    m.engine.name, m.wasm, m.process, m.iteration, m.phase, m.event, m.count
+                    "{} {} {} {} {}",
+                    m.engine.name, m.wasm, m.phase, m.event, m.count
                 )
             })
             .collect();
         assert_eq!(
             rows,
             [
-                "wasmtime a/a.wasm 0 0 compilation instructions-retired 15",
-                "wasmtime a/a.wasm 0 0 compilation virtual-cycles 30",
-                "wasmtime b/benchmark.wasm 0 0 compilation virtual-cycles 11",
-                "wasmtime b/benchmark.wasm 1 0 compilation virtual-cycles 10",
-                "wasmtime b/benchmark.wasm 1 0 execution virtual-cycles 20",
+                "wasmtime a/a.wasm compilation instructions-retired 15",
+                "wasmtime a/a.wasm compilation virtual-cycles 30",
+                // Equal keys keep file order: `.000` before `.001`.
+                "wasmtime b/benchmark.wasm compilation virtual-cycles 11",
+                "wasmtime b/benchmark.wasm compilation virtual-cycles 10",
+                "wasmtime b/benchmark.wasm execution virtual-cycles 20",
             ]
         );
         // Other columns are untouched.
@@ -408,7 +391,7 @@ mod tests {
         let scratch = scratch(
             &[(
                 "x.000.csv",
-                "x86_64,wasmtime,,/elsewhere/x.wasm,1,0,Execution,virtual-cycles,1\n",
+                "x86_64,wasmtime,,/elsewhere/x.wasm,Execution,virtual-cycles,1\n",
             )],
             "",
         );
@@ -438,12 +421,12 @@ mod tests {
         );
         assert_eq!(metadata.environment.cpu, "Fake CPU");
         assert_eq!(metadata.finished.to_string(), "2026-10-10T04:00:00Z");
-        assert_eq!(metadata.config.processes, 3);
+        assert_eq!(metadata.config.iterations, 3);
         assert_eq!(
             metadata.failures,
             [(
                 "c/c.wasm".to_string(),
-                "process 0: exit status: 1".to_string()
+                "iteration 0: exit status: 1".to_string()
             )]
             .into()
         );

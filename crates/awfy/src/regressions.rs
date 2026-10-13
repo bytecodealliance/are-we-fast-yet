@@ -589,8 +589,6 @@ mod tests {
             arch: "x86_64".into(),
             engine: Engine::from(engine.to_string()),
             wasm: wasm.to_string().into(),
-            process: 0,
-            iteration: 0,
             phase,
             event: VIRTUAL_CYCLES.into(),
             count,
@@ -602,17 +600,11 @@ mod tests {
         let mut old = Vec::new();
         let mut new = Vec::new();
         for &(wasm, phase, a, b) in rows {
-            for (i, &c) in a.iter().enumerate() {
-                old.push(Measurement {
-                    process: i as u32,
-                    ..measurement("x", wasm, phase, c)
-                });
+            for &c in a {
+                old.push(measurement("x", wasm, phase, c));
             }
-            for (i, &c) in b.iter().enumerate() {
-                new.push(Measurement {
-                    process: i as u32,
-                    ..measurement("y", wasm, phase, c)
-                });
+            for &c in b {
+                new.push(measurement("y", wasm, phase, c));
             }
         }
         let mut meta = crate::metadata::tests::example();

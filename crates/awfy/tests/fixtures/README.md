@@ -2,7 +2,7 @@
 
 A small repo root: `config.toml` and `benchmark-data/`. Two benchmarks, three
 phases, three events (`virtual-cycles`, `instructions-retired`,
-`l1-dcache-read-misses`), three processes. Counts in each group are
+`l1-dcache-read-misses`), three iterations. Counts in each group are
 `base - 10*k`, `base`, `base + 10*k`, where `k` is `base / 100000` (at least 1).
 
 | Run | What |

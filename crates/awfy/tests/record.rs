@@ -45,7 +45,7 @@ fn run_then_record() {
         started: "2026-10-07T03:17:00Z".parse().unwrap(),
         workflow_run: None,
         suite: None,
-        processes: None,
+        iterations: None,
     };
     let run = record(root.path(), &options, &FakeProbe).unwrap();
     assert_eq!(run, RunNumber::new(7).unwrap());
@@ -63,11 +63,21 @@ fn run_then_record() {
     );
 
     let measurements = data.measurements(run).unwrap();
-    // 2 benchmarks x 3 processes x 3 phases x 2 events.
+    // 2 benchmarks x 3 iterations x 3 phases x 2 events.
     assert_eq!(measurements.len(), 36);
-    let processes: std::collections::BTreeSet<u32> =
-        measurements.iter().map(|m| m.process).collect();
-    assert_eq!(processes, [0, 1, 2].into());
+    // Each surviving benchmark contributed all three of its iterations.
+    let mut per_benchmark = std::collections::BTreeMap::new();
+    for m in &measurements {
+        *per_benchmark.entry(m.wasm.to_string()).or_insert(0) += 1;
+    }
+    assert_eq!(
+        per_benchmark,
+        [
+            ("a/benchmark.wasm".to_string(), 18),
+            ("c/c.wasm".to_string(), 18)
+        ]
+        .into()
+    );
     assert!(measurements.iter().all(|m| m.engine.name == "wasmtime"));
 
     // Re-recording the same CSV gives byte-identical gzip.

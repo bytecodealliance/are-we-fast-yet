@@ -22,8 +22,8 @@ pub struct Config {
 pub struct Benchmark {
     /// Suite file, relative to `sightglass/`.
     pub suite: String,
-    /// Callgrind processes per benchmark.
-    pub processes: u32,
+    /// Callgrind iterations per benchmark.
+    pub iterations: u32,
     /// Passed to `sightglass-cli` as `--engine-flags-common`.
     pub engine_flags: String,
 }
@@ -93,7 +93,7 @@ mod tests {
             get(&root, "regressions.issue-repo").unwrap(),
             "bytecodealliance/are-we-fast-yet"
         );
-        assert_eq!(get(&root, "benchmark.processes").unwrap(), "3");
+        assert_eq!(get(&root, "benchmark.iterations").unwrap(), "3");
         assert!(get(&root, "regressions").is_err());
         assert!(get(&root, "regressions.nope").is_err());
     }
@@ -116,7 +116,7 @@ mod tests {
         let text = r#"
             [benchmark]
             suite = "s"
-            processes = 1
+            iterations = 1
             engine-flags = ""
             typo = 1
             [regressions]

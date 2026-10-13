@@ -84,8 +84,8 @@ pub struct Environment {
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case", deny_unknown_fields)]
 pub struct RunConfig {
-    /// The number of benchmark processes to run.
-    pub processes: u32,
+    /// The number of benchmark iterations to run.
+    pub iterations: u32,
     /// The engine flags passed into sightglass.
     pub engine_flags: String,
 }
@@ -221,7 +221,7 @@ pub(crate) mod tests {
                 cpu: "AMD EPYC 7763 64-Core Processor".into(),
             },
             config: RunConfig {
-                processes: 3,
+                iterations: 3,
                 engine_flags: "--target x86_64-unknown-linux-gnu".into(),
             },
             failures: BTreeMap::new(),
@@ -276,7 +276,7 @@ pub(crate) mod tests {
             m.field("wasmtime.commit").unwrap(),
             "0123456789abcdef0123456789abcdef01234567"
         );
-        assert_eq!(m.field("config.processes").unwrap(), "3");
+        assert_eq!(m.field("config.iterations").unwrap(), "3");
         assert!(m.field("wasmtime").is_err());
         assert!(m.field("wasmtime.nope").is_err());
         assert!(m.field("schema.nope").is_err());

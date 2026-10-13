@@ -1,6 +1,6 @@
 [benchmark]
 suite = "benchmarks/default.suite"
-processes = 3
+iterations = 3
 engine-flags = "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2"
 
 [regressions]

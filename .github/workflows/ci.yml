@@ -10,9 +10,9 @@ permissions:
 
 env:
   CARGO_TERM_COLOR: always
-  # The Wasmtime release the smoke test benchmarks. Bump with the Sightglass
+  # The Wasmtime revision the smoke test benchmarks. Bump with the Sightglass
   # submodule when the bench API changes.
-  WASMTIME_REVISION: v49.0.2
+  WASMTIME_REVISION: 239274b0b5e96755a3d3009b7b3659b3b0f6f8cb
 
 jobs:
   rust:
@@ -60,10 +60,10 @@ jobs:
           now=$(date -u +%Y-%m-%dT%H:%M:%SZ)
           target/release/awfy run --engine target/smoke-engine/libengine.so \
             --sightglass-cli sightglass/target/release/sightglass-cli \
-            --suite ../crates/awfy/tests/smoke.suite --processes 1 --out "$RUNNER_TEMP/smoke-scratch"
+            --suite ../crates/awfy/tests/smoke.suite --iterations 1 --out "$RUNNER_TEMP/smoke-scratch"
           target/release/awfy record --scratch "$RUNNER_TEMP/smoke-scratch" \
             --wasmtime-commit "$WASMTIME_REVISION" --wasmtime-commit-date "$now" \
-            --started "$now" --suite ../crates/awfy/tests/smoke.suite --processes 1
+            --started "$now" --suite ../crates/awfy/tests/smoke.suite --iterations 1
       - run: cargo test -p awfy --test smoke -- --ignored
         env:
           AWFY_SMOKE_ROOT: ${{ github.workspace }}

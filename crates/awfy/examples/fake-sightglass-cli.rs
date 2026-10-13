@@ -22,7 +22,7 @@ fn main() {
         .iter()
         .find_map(|a| a.strip_prefix("--engine-flags-common="))
         .expect("missing --engine-flags-common");
-    assert_eq!(value("--processes"), "1");
+    assert_eq!(value("--iters"), "1");
     assert_eq!(value("--measure"), "callgrind");
     let wasm = args.last().unwrap();
 
@@ -36,13 +36,11 @@ fn main() {
         .ok()
         .map(|b| b.parse().unwrap())
         .unwrap_or(1_000_000);
-    let pid = std::process::id();
-    let mut csv =
-        String::from("arch,engine,engine_flags,wasm,process,iteration,phase,event,count\n");
+    let mut csv = String::from("arch,engine,engine_flags,wasm,phase,event,count\n");
     for (phase, scale) in [("Compilation", 1), ("Instantiation", 0), ("Execution", 2)] {
         for (event, fraction) in [("virtual-cycles", 1.0), ("instructions-retired", 0.5)] {
             let count = ((base << scale) as f64 * fraction) as u64;
-            csv += &format!("x86_64,{name},{flags},{wasm},{pid},0,{phase},{event},{count}\n");
+            csv += &format!("x86_64,{name},{flags},{wasm},{phase},{event},{count}\n");
         }
     }
     std::fs::write(output, csv).unwrap();

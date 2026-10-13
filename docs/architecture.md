@@ -18,8 +18,9 @@ hardware or external services, benchmarking PRs, and backfilling history.
 ## Key decisions
 
 * **One runner, many processes.** Callgrind counts don't depend on load, so
-  `awfy run` runs `nproc` units at once on one host. If a run outgrows the
-  6 hour job limit, shard across a matrix.
+  `awfy run` runs `nproc` units at once on one host, each unit one iteration of
+  one benchmark in its own process. If a run outgrows the 6 hour job limit,
+  shard across a matrix.
 * **Pinned environment.** `.github/actions/install-valgrind` pins Valgrind,
   `rust-toolchain.toml` pins rustc, and the `sightglass/` submodule pins the
   suite and cost model. Changing any of them changes the fingerprint (see

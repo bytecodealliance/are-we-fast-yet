@@ -40,7 +40,7 @@ start(async () => {
     ["rustc", m.environment.rustc],
     ["uname", el("code", {}, m.environment.uname)],
     ["CPU", m.environment.cpu],
-    ["Processes", String(m.config.processes)],
+    ["Iterations", String(m.config.iterations)],
     ["Engine flags", el("code", {}, m.config["engine-flags"])],
     [
       "Raw data",
