@@ -1,0 +1,27 @@
+schema = 1
+started = 2026-10-14T00:55:30Z
+finished = 2026-10-14T02:22:21Z
+
+[wasmtime]
+commit = "c76569e2bd6d510141833b467d1d35cbeb5ae565"
+commit-date = 2026-10-13T23:43:59Z
+
+[sightglass]
+commit = "181477a9d02909abf283deca6a00f4b8ae97ebd8"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "39704433a55fe3cc9c94999db1da709a9725a1bb"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38492820731"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmmprz5 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
