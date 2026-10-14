@@ -1,10 +1,11 @@
-// run.html?run=NNNNN: metadata, raw files, and the change table.
+// run.html?run=NNNNN: metadata, raw files, the new Wasmtime commits, and
+// the change table.
 
 import { Data } from "./data.js";
 import { el, showError, start } from "./page.js";
 import { slug } from "./slug.js";
 import { parseState } from "./state.js";
-import { formatChange, formatCount } from "./transform.js";
+import { WASMTIME_REPO, commitLog, formatChange, formatCount, shortSha } from "./transform.js";
 
 start(async () => {
   const data = new Data();
@@ -26,8 +27,9 @@ start(async () => {
   const repo = `https://github.com/${index.repo}`;
   const m = page.metadata;
   const link = (href, text) => el("a", { href }, text);
+  const previousSha = index.runs.find((r) => r.run === page.previous)?.wasmtime ?? null;
   const rows = [
-    ["Wasmtime", link(`https://github.com/bytecodealliance/wasmtime/commit/${m.wasmtime.commit}`, el("code", {}, m.wasmtime.commit))],
+    ["Wasmtime", link(`${WASMTIME_REPO}/commit/${m.wasmtime.commit}`, el("code", {}, m.wasmtime.commit))],
     ["Commit date", m.wasmtime["commit-date"]],
     ["Started", m.started],
     ["Finished", m.finished],
@@ -59,8 +61,47 @@ start(async () => {
   }
   document.getElementById("summary").append(el("dl", {}, rows.flatMap(([k, v]) => [el("dt", {}, k), el("dd", {}, v)])));
 
+  renderCommits(commitLog(m, previousSha));
   renderTable(page.changes);
 });
+
+/** The Wasmtime commits new in this run, newest first. */
+function renderCommits({ commits, omitted, compare }) {
+  const box = document.getElementById("commits");
+  const children = [];
+  if (compare) {
+    children.push(el("p", {}, el("a", { href: compare }, "Compare on GitHub")));
+  }
+  if (commits.length === 0) {
+    children.push(
+      el(
+        "p",
+        { class: "muted" },
+        compare ? "No commit list was recorded for this run." : "No previous run to compare with.",
+      ),
+    );
+  } else {
+    children.push(
+      el(
+        "ul",
+        { class: "commits" },
+        commits.map((c) =>
+          el(
+            "li",
+            {},
+            el("a", { href: `${WASMTIME_REPO}/commit/${c.commit}` }, el("code", {}, shortSha(c.commit))),
+            " ",
+            c.subject,
+          ),
+        ),
+      ),
+    );
+    if (omitted > 0) {
+      children.push(el("p", { class: "muted" }, `... and ${omitted} more; see the comparison on GitHub.`));
+    }
+  }
+  box.replaceChildren(...children);
+}
 
 function renderTable(changes) {
   const box = document.getElementById("changes");

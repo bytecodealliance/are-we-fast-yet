@@ -9,3 +9,6 @@ it.
 * Pure JS logic is separate from DOM code so `node --test` covers it.
 * A run with failed benchmarks gets no Geomean point, since a geomean over a
   different benchmark set is not comparable with its neighbors.
+* The run page lists the Wasmtime commits new since the previous run, read
+  from that run's metadata (see [data.md](data.md)). Runs recorded without a
+  log, such as the first one, show a note instead.

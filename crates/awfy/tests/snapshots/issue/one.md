@@ -23,11 +23,9 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 
 https://github.com/bytecodealliance/wasmtime/compare/2222222222222222222222222222222222222222...3333333333333333333333333333333333333333
 
-```
-abc0002 Commit number 2
-abc0001 Commit number 1
-abc0000 Commit number 0
-```
+* [`abc0002fffff` winch: fix the stack alignment on aarch64](https://github.com/bytecodealliance/wasmtime/commit/abc0002fffffffffffffffffffffffffffffffff)
+* [`abc0001fffff` Revert "Bump the MSRV to 1.84"](https://github.com/bytecodealliance/wasmtime/commit/abc0001fffffffffffffffffffffffffffffffff)
+* [`abc0000fffff` Cranelift: add an egraph rule for `x * 2`](https://github.com/bytecodealliance/wasmtime/commit/abc0000fffffffffffffffffffffffffffffffff)
 
 ### Reproduce locally
 

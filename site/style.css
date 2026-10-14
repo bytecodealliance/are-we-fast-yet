@@ -202,3 +202,12 @@ dd {
 .u-select {
   background: color-mix(in srgb, var(--accent) 15%, transparent);
 }
+
+ul.commits {
+  margin: 0;
+  padding-left: 20px;
+}
+
+ul.commits li {
+  overflow-wrap: anywhere;
+}

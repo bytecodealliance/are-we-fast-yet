@@ -2,6 +2,7 @@
 //! `benchmark-data/NNNNN/`. See `docs/data.md`.
 
 use crate::config::Config;
+use crate::git::{GitLog, Repo};
 use crate::metadata::{
     AreWeFastYet, Environment, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
 };
@@ -36,7 +37,17 @@ pub struct Options {
     /// The iterations passed to `awfy run --iterations`, if any.
     #[arg(long)]
     pub iterations: Option<u32>,
+    /// A Wasmtime clone, for the commits new since the previous run.
+    #[arg(long)]
+    pub wasmtime_repo: Option<PathBuf>,
 }
+
+/// Most commits recorded in `wasmtime.commits`.
+///
+/// Runs are three hours apart, so this only bites after a long gap. The rest
+/// are counted in `wasmtime.omitted-commits` and stay reachable through the
+/// GitHub compare link.
+pub const MAX_COMMITS: usize = 200;
 
 /// Everything `record` learns from outside the scratch directory, so it can be
 /// faked in tests.
@@ -93,13 +104,24 @@ impl SystemMethods for System {
 
 /// Run `awfy record` with the given options.
 pub fn run(root: &Path, options: Options) -> Result<()> {
-    let run = record(root, &options, &System)?;
+    let repo = options.wasmtime_repo.as_deref().map(Repo::new);
+    let run = record(
+        root,
+        &options,
+        &System,
+        repo.as_ref().map(|r| r as &dyn GitLog),
+    )?;
     println!("{run}");
     Ok(())
 }
 
 /// Write the new run directory and return its number.
-pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Result<RunNumber> {
+pub fn record(
+    root: &Path,
+    options: &Options,
+    probe: &dyn SystemMethods,
+    git: Option<&dyn GitLog>,
+) -> Result<RunNumber> {
     let config = Config::load(root)?;
     let measurements = merge(&options.scratch)?;
     if measurements.is_empty() {
@@ -118,6 +140,19 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
     let data = DataDir::new(root);
     std::fs::create_dir_all(data.path())?;
     let run = data.next_run_number()?;
+    // The log is recorded now because the site is built elsewhere, by a job
+    // with no Wasmtime clone to read it from.
+    let previous = data.visible_runs()?.last().copied();
+    let (commits, omitted_commits) = match (git, previous) {
+        (Some(git), Some(previous)) => {
+            let previous = data.metadata(previous)?.wasmtime.commit;
+            let mut commits = git.log(&previous, &options.wasmtime_commit)?;
+            let omitted = commits.len().saturating_sub(MAX_COMMITS);
+            commits.truncate(MAX_COMMITS);
+            (commits, u32::try_from(omitted).unwrap_or(u32::MAX))
+        }
+        _ => (vec![], 0),
+    };
     let target = data.run_dir(run);
     if target.exists() {
         bail!("{} already exists", target.display());
@@ -138,6 +173,8 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
         wasmtime: Wasmtime {
             commit: options.wasmtime_commit.clone(),
             commit_date: options.wasmtime_commit_date,
+            omitted_commits,
+            commits,
         },
         sightglass: Sightglass {
             commit: probe.command(&root.join("sightglass"), "git", &["rev-parse", "HEAD"])?,
@@ -169,9 +206,10 @@ pub fn record(root: &Path, options: &Options, probe: &dyn SystemMethods) -> Resu
     std::fs::rename(tmp.keep(), &target)
         .with_context(|| format!("renaming into {}", target.display()))?;
     log::info!(
-        "recorded run {run}: {} rows, {} failed benchmark(s)",
+        "recorded run {run}: {} rows, {} failed benchmark(s), {} new commit(s)",
         measurements.len(),
-        metadata.failures.len()
+        metadata.failures.len(),
+        metadata.wasmtime.commits.len() + metadata.wasmtime.omitted_commits as usize
     );
     Ok(run)
 }
@@ -236,6 +274,7 @@ fn normalize_wasm(wasm: &str) -> Result<String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::git::Commit;
     use std::cell::Cell;
 
     /// Canned answers. Fails `valgrind` when `fail_valgrind` is set.
@@ -307,6 +346,25 @@ mod tests {
             workflow_run: None,
             suite: None,
             iterations: None,
+            wasmtime_repo: None,
+        }
+    }
+
+    /// `n` commits, newest first, from the baseline to `wasmtime_commit`.
+    struct FakeGit(usize);
+
+    impl GitLog for FakeGit {
+        fn log(&self, old: &str, new: &str) -> Result<Vec<Commit>> {
+            // 00003 is the fixture root's newest run.
+            assert_eq!(old, "3".repeat(40));
+            assert_eq!(new, "0123456789abcdef0123456789abcdef01234567");
+            Ok((0..self.0)
+                .rev()
+                .map(|i| Commit {
+                    commit: format!("{i:040x}"),
+                    subject: format!("Commit number {i}"),
+                })
+                .collect())
         }
     }
 
@@ -318,6 +376,14 @@ mod tests {
         std::fs::create_dir(&data).unwrap();
         for run in ["00001", "00003"] {
             std::fs::create_dir(data.join(run)).unwrap();
+            std::fs::copy(
+                fixtures
+                    .join("benchmark-data")
+                    .join(run)
+                    .join(runs::METADATA),
+                data.join(run).join(runs::METADATA),
+            )
+            .unwrap();
         }
         tmp
     }
@@ -407,7 +473,7 @@ mod tests {
             suite: Some("benchmarks/one.suite".into()),
             ..options(scratch.path())
         };
-        let run = record(root.path(), &options, &FakeProbe::default()).unwrap();
+        let run = record(root.path(), &options, &FakeProbe::default(), None).unwrap();
         assert_eq!(run, RunNumber::new(4).unwrap());
 
         let data = DataDir::new(root.path());
@@ -444,10 +510,85 @@ mod tests {
     }
 
     #[test]
+    fn records_the_new_commits() {
+        let root = fixture_root();
+        let scratch = two_units();
+        let run = record(
+            root.path(),
+            &options(scratch.path()),
+            &FakeProbe::default(),
+            Some(&FakeGit(3)),
+        )
+        .unwrap();
+        let wasmtime = DataDir::new(root.path()).metadata(run).unwrap().wasmtime;
+        assert_eq!(wasmtime.omitted_commits, 0);
+        assert_eq!(
+            wasmtime
+                .commits
+                .iter()
+                .map(|c| c.subject.as_str())
+                .collect::<Vec<_>>(),
+            ["Commit number 2", "Commit number 1", "Commit number 0"]
+        );
+    }
+
+    #[test]
+    fn long_commit_logs_are_truncated() {
+        let root = fixture_root();
+        let scratch = two_units();
+        let run = record(
+            root.path(),
+            &options(scratch.path()),
+            &FakeProbe::default(),
+            Some(&FakeGit(MAX_COMMITS + 7)),
+        )
+        .unwrap();
+        let wasmtime = DataDir::new(root.path()).metadata(run).unwrap().wasmtime;
+        assert_eq!(wasmtime.commits.len(), MAX_COMMITS);
+        assert_eq!(wasmtime.omitted_commits, 7);
+        // The newest commits are the ones kept.
+        assert_eq!(wasmtime.commits[0].subject, "Commit number 206");
+    }
+
+    /// The very first run has no baseline, so there is nothing to log.
+    #[test]
+    fn no_commits_without_a_previous_run() {
+        let tmp = tempfile::tempdir().unwrap();
+        std::fs::copy(
+            Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures/config.toml"),
+            tmp.path().join("config.toml"),
+        )
+        .unwrap();
+        let scratch = two_units();
+        struct Never;
+        impl GitLog for Never {
+            fn log(&self, _old: &str, _new: &str) -> Result<Vec<Commit>> {
+                panic!("no baseline to log against");
+            }
+        }
+        let run = record(
+            tmp.path(),
+            &options(scratch.path()),
+            &FakeProbe::default(),
+            Some(&Never),
+        )
+        .unwrap();
+        let wasmtime = DataDir::new(tmp.path()).metadata(run).unwrap().wasmtime;
+        assert_eq!(wasmtime.commits, []);
+        assert_eq!(wasmtime.omitted_commits, 0);
+    }
+
+    #[test]
     fn suite_defaults_to_config() {
         let root = fixture_root();
         let scratch = two_units();
-        let run = record(root.path(), &options(scratch.path()), &FakeProbe::default()).unwrap();
+        let run = record(
+            root.path(),
+            &options(scratch.path()),
+            &FakeProbe::default(),
+            None,
+        )
+        .unwrap();
         let metadata = DataDir::new(root.path()).metadata(run).unwrap();
         assert_eq!(metadata.sightglass.suite, "benchmarks/default.suite");
     }
@@ -472,7 +613,7 @@ mod tests {
         let scratch = two_units();
         let probe = FakeProbe::default();
         probe.fail_valgrind.set(true);
-        assert!(record(root.path(), &options(scratch.path()), &probe).is_err());
+        assert!(record(root.path(), &options(scratch.path()), &probe, None).is_err());
         let entries: Vec<_> = std::fs::read_dir(root.path().join("benchmark-data"))
             .unwrap()
             .map(|e| e.unwrap().file_name().into_string().unwrap())
@@ -484,7 +625,13 @@ mod tests {
     fn no_rows_is_an_error() {
         let root = fixture_root();
         let scratch = scratch(&[], "\"a/a.wasm\" = \"boom\"\n");
-        let err = record(root.path(), &options(scratch.path()), &FakeProbe::default()).unwrap_err();
+        let err = record(
+            root.path(),
+            &options(scratch.path()),
+            &FakeProbe::default(),
+            None,
+        )
+        .unwrap_err();
         assert!(
             err.to_string().contains("no benchmark produced any rows"),
             "{err}"
@@ -497,6 +644,14 @@ mod tests {
         // A stray file with the next run's name.
         std::fs::write(root.path().join("benchmark-data/00004"), "").unwrap();
         let scratch = two_units();
-        assert!(record(root.path(), &options(scratch.path()), &FakeProbe::default()).is_err());
+        assert!(
+            record(
+                root.path(),
+                &options(scratch.path()),
+                &FakeProbe::default(),
+                None
+            )
+            .is_err()
+        );
     }
 }

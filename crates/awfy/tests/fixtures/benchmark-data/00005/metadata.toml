@@ -6,6 +6,10 @@ finished = 2026-10-05T04:21:12Z
 commit = "5555555555555555555555555555555555555555"
 commit-date = 2026-10-05T01:41:05Z
 
+[[wasmtime.commits]]
+commit = "5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a5a"
+subject = "Return Box<dyn Error> & drop the <script> hack"
+
 [sightglass]
 commit = "e38856287c8871228d7ff843e29028c381a71dd7"
 suite = "benchmarks/default.suite"

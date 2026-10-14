@@ -90,7 +90,21 @@
     "started": "2026-10-03T03:17:00Z",
     "wasmtime": {
       "commit": "3333333333333333333333333333333333333333",
-      "commit-date": "2026-10-03T01:41:05Z"
+      "commit-date": "2026-10-03T01:41:05Z",
+      "commits": [
+        {
+          "commit": "3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a3a",
+          "subject": "Speed up the thing"
+        },
+        {
+          "commit": "3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b3b",
+          "subject": "Revert \"Slow down the thing\""
+        },
+        {
+          "commit": "3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c3c",
+          "subject": "Add a test"
+        }
+      ]
     }
   },
   "previous": 2,

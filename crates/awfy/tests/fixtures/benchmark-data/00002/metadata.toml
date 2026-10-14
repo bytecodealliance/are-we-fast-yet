@@ -5,6 +5,11 @@ finished = 2026-10-02T04:21:12Z
 [wasmtime]
 commit = "2222222222222222222222222222222222222222"
 commit-date = 2026-10-02T01:41:05Z
+omitted-commits = 1
+
+[[wasmtime.commits]]
+commit = "2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a2a"
+subject = "Commit 2a"
 
 [sightglass]
 commit = "e38856287c8871228d7ff843e29028c381a71dd7"

@@ -73,3 +73,25 @@ export function formatChange(r, decimals = 2) {
   const sign = r > 0 ? "+" : r < 0 ? "\u2212" : "";
   return `${sign}${Math.abs(r * 100).toFixed(decimals)}%`;
 }
+
+/** The Wasmtime repository, which commits link into. */
+export const WASMTIME_REPO = "https://github.com/bytecodealliance/wasmtime";
+
+/** A commit SHA abbreviated the way the regression issues abbreviate them. */
+export function shortSha(sha) {
+  return sha.slice(0, 12);
+}
+
+/**
+ * The Wasmtime commits new in a run, as `{commits, omitted, compare}`.
+ * `compare` is a GitHub compare URL against `previousSha`, or null when there
+ * is no previous run to compare with.
+ */
+export function commitLog(metadata, previousSha) {
+  const w = metadata?.wasmtime ?? {};
+  return {
+    commits: w.commits ?? [],
+    omitted: w["omitted-commits"] ?? 0,
+    compare: previousSha ? `${WASMTIME_REPO}/compare/${previousSha}...${w.commit}` : null,
+  };
+}

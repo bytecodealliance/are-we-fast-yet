@@ -6,6 +6,10 @@ finished = 2026-10-06T04:21:12Z
 commit = "6666666666666666666666666666666666666666"
 commit-date = 2026-10-06T01:41:05Z
 
+[[wasmtime.commits]]
+commit = "6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a6a"
+subject = "Another commit"
+
 [sightglass]
 commit = "e38856287c8871228d7ff843e29028c381a71dd7"
 suite = "benchmarks/default.suite"

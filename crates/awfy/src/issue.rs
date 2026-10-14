@@ -2,14 +2,15 @@
 //! `docs/regressions.md` ("Issue").
 
 use crate::config::Config;
+use crate::git::{GitLog, Repo};
 use crate::metadata::Metadata;
 use crate::regressions::{Change, Report, VIRTUAL_CYCLES, short};
 use crate::runs::RunNumber;
 use crate::slug::slug;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use sightglass_analysis::geomean::GEOMEAN;
 use std::fmt::Write as _;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 /// The Wasmtime repository URL on github.
 const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
@@ -29,43 +30,6 @@ struct Issue {
 /// it before filing, so re-runs never file duplicates.
 pub fn issue_key(run: RunNumber) -> String {
     format!("(are-we-fast-yet run {run})")
-}
-
-/// A trait to run `git log`, so we can fake it in tests.
-trait GitLog {
-    /// Run `git log --oneline old..new`.
-    fn log(&self, old: &str, new: &str) -> Result<Vec<String>>;
-}
-
-/// A local Wasmtime clone.
-///
-/// A treeless checkout is good enough for our purposes.
-struct Repo(PathBuf);
-
-impl GitLog for Repo {
-    fn log(&self, old: &str, new: &str) -> Result<Vec<String>> {
-        let output = std::process::Command::new("git")
-            .arg("-C")
-            .arg(&self.0)
-            .args([
-                "log",
-                "--oneline",
-                "--no-decorate",
-                &format!("{old}..{new}"),
-            ])
-            .output()
-            .context("running `git log`")?;
-        anyhow::ensure!(
-            output.status.success(),
-            "`git log` in {} failed: {}",
-            self.0.display(),
-            String::from_utf8_lossy(&output.stderr)
-        );
-        Ok(String::from_utf8(output.stdout)?
-            .lines()
-            .map(String::from)
-            .collect())
-    }
 }
 
 /// Render the issue, or `None` if there are no regressions.
@@ -144,18 +108,44 @@ fn render(
     writeln!(b, "{WASMTIME_REPO}/compare/{old}...{new}\n")?;
     if let Some(git) = git {
         let commits = git.log(old, new)?;
-        writeln!(b, "```")?;
-        for line in commits.iter().take(MAX_COMMITS) {
-            writeln!(b, "{line}")?;
+        for c in commits.iter().take(MAX_COMMITS) {
+            writeln!(
+                b,
+                "* [`{}` {}]({WASMTIME_REPO}/commit/{})",
+                short(&c.commit),
+                escape(&c.subject),
+                c.commit
+            )?;
         }
         if commits.len() > MAX_COMMITS {
-            writeln!(b, "... and {} more", commits.len() - MAX_COMMITS)?;
+            writeln!(b, "* ... and {} more", commits.len() - MAX_COMMITS)?;
         }
-        writeln!(b, "```\n")?;
+        writeln!(b)?;
     }
 
     reproduce(&mut b, report, metadata)?;
     Ok(Some(Issue { title, body: b }))
+}
+
+/// Escape a commit subject for a Markdown link's text. Brackets end the link
+/// early and a backslash escapes whatever follows, so those are
+/// backslash-escaped. GitHub also renders raw HTML, which would otherwise
+/// swallow the type parameter in a subject like `Box<dyn Error>`.
+fn escape(subject: &str) -> String {
+    let mut out = String::with_capacity(subject.len());
+    for c in subject.chars() {
+        match c {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '[' | ']' | '\\' => {
+                out.push('\\');
+                out.push(c);
+            }
+            _ => out.push(c),
+        }
+    }
+    out
 }
 
 /// E.g. `1.23x +/- 0.004 more virtual cycles`.
@@ -233,7 +223,7 @@ pub fn write(
     config: &Config,
     wasmtime_repo: Option<&Path>,
 ) -> Result<bool> {
-    let repo = wasmtime_repo.map(|p| Repo(p.to_path_buf()));
+    let repo = wasmtime_repo.map(Repo::new);
     let git = repo.as_ref().map(|r| r as &dyn GitLog);
     let Some(issue) = render(report, metadata, config, git)? else {
         return Ok(false);
@@ -247,10 +237,12 @@ pub fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::git::Commit;
     use crate::regressions::{Outcome, compare};
     use crate::runs::DataDir;
     use crate::snapshot::assert_snapshot;
     use sightglass_data::Phase;
+    use std::path::PathBuf;
 
     fn fixtures() -> PathBuf {
         Path::new(env!("CARGO_MANIFEST_DIR")).join("tests/fixtures")
@@ -271,13 +263,25 @@ mod tests {
         (report, data.metadata(RunNumber::new(3).unwrap()).unwrap())
     }
 
+    /// Subjects that look like Wasmtime's, cycled to make as many as needed.
+    const SUBJECTS: &[&str] = &[
+        "Cranelift: add an egraph rule for `x * 2`",
+        "Revert \"Bump the MSRV to 1.84\"",
+        "winch: fix the stack alignment on aarch64",
+        "Bump wasm-tools to 1.220.0",
+    ];
+
+    /// `n` commits, newest first.
     struct FakeGit(usize);
 
     impl GitLog for FakeGit {
-        fn log(&self, _old: &str, _new: &str) -> Result<Vec<String>> {
+        fn log(&self, _old: &str, _new: &str) -> Result<Vec<Commit>> {
             Ok((0..self.0)
                 .rev()
-                .map(|i| format!("{:07x} Commit number {i}", 0xabc0000 + i))
+                .map(|i| Commit {
+                    commit: format!("{:x}{}", 0xabc0000 + i, "f".repeat(33)),
+                    subject: SUBJECTS[i % SUBJECTS.len()].to_string(),
+                })
                 .collect())
         }
     }
@@ -393,6 +397,32 @@ mod tests {
         render_snapshot("geomean", &report, &metadata, Some(&FakeGit(1)));
     }
 
+    /// A subject is arbitrary text, so it must not break out of the link.
+    #[test]
+    fn commit_subjects_are_escaped() {
+        struct Tricky;
+        impl GitLog for Tricky {
+            fn log(&self, _old: &str, _new: &str) -> Result<Vec<Commit>> {
+                Ok(vec![Commit {
+                    commit: "a".repeat(40),
+                    subject: r"Return Box<dyn Error> & fix [brackets](x) and \backslashes".into(),
+                }])
+            }
+        }
+        let (report, metadata) = fixture_report();
+        let issue = render(&report, &metadata, &config(), Some(&Tricky))
+            .unwrap()
+            .unwrap();
+        assert!(
+            issue.body.contains(&format!(
+                r"* [`aaaaaaaaaaaa` Return Box&lt;dyn Error&gt; &amp; fix \[brackets\](x) and \\backslashes](https://github.com/bytecodealliance/wasmtime/commit/{})",
+                "a".repeat(40)
+            )),
+            "{}",
+            issue.body
+        );
+    }
+
     #[test]
     fn no_regressions() {
         let (mut report, metadata) = fixture_report();
@@ -406,49 +436,5 @@ mod tests {
         let issue_dir = dir.path().join("issue");
         assert!(!write(&issue_dir, &report, &metadata, &config(), None).unwrap());
         assert!(!issue_dir.exists());
-    }
-
-    #[test]
-    fn real_git_log() {
-        let tmp = tempfile::tempdir().unwrap();
-        let git = |args: &[&str]| {
-            let out = std::process::Command::new("git")
-                .arg("-C")
-                .arg(tmp.path())
-                .args([
-                    "-c",
-                    "user.name=t",
-                    "-c",
-                    "user.email=t@t",
-                    "-c",
-                    "commit.gpgsign=false",
-                ])
-                .args(args)
-                .output()
-                .unwrap();
-            assert!(
-                out.status.success(),
-                "{}",
-                String::from_utf8_lossy(&out.stderr)
-            );
-            String::from_utf8(out.stdout).unwrap().trim().to_string()
-        };
-        git(&["init", "-q"]);
-        let mut shas = Vec::new();
-        for i in 0..4 {
-            git(&[
-                "commit",
-                "-q",
-                "--allow-empty",
-                "-m",
-                &format!("Commit {i}"),
-            ]);
-            shas.push(git(&["rev-parse", "HEAD"]));
-        }
-        let log = Repo(tmp.path().to_path_buf())
-            .log(&shas[0], &shas[3])
-            .unwrap();
-        let messages: Vec<&str> = log.iter().map(|l| l.split_once(' ').unwrap().1).collect();
-        assert_eq!(messages, ["Commit 3", "Commit 2", "Commit 1"]);
     }
 }

@@ -1,12 +1,14 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
+  commitLog,
   fingerprintMarkers,
   formatChange,
   formatCount,
   formatInstant,
   formatTicks,
   relativeToFirstVisible,
+  shortSha,
 } from "../../js/transform.js";
 
 test("relative to the first visible point", () => {
@@ -55,4 +57,29 @@ test("tick labels stay distinct", () => {
   assert.deepEqual(formatTicks([1000000, 1002000, 1004000]), ["1.000M", "1.002M", "1.004M"]);
   assert.deepEqual(formatTicks([1e6, 2e6]), ["1.00M", "2.00M"]);
   assert.deepEqual(formatTicks([]), []);
+});
+
+test("the commit log carries the new commits and a compare link", () => {
+  const metadata = {
+    wasmtime: {
+      commit: "b".repeat(40),
+      commits: [{ commit: "c".repeat(40), subject: "Speed up the thing" }],
+      "omitted-commits": 2,
+    },
+  };
+  const log = commitLog(metadata, "a".repeat(40));
+  assert.deepEqual(log.commits, metadata.wasmtime.commits);
+  assert.equal(log.omitted, 2);
+  assert.equal(log.compare, `https://github.com/bytecodealliance/wasmtime/compare/${"a".repeat(40)}...${"b".repeat(40)}`);
+
+  // The first run has no previous commit, so nothing to compare against.
+  assert.equal(commitLog(metadata, null).compare, null);
+  // A run recorded before commits were, or with no clone to read them from.
+  const bare = { wasmtime: { commit: "b".repeat(40) } };
+  assert.deepEqual(commitLog(bare, "a".repeat(40)).commits, []);
+  assert.equal(commitLog(bare, "a".repeat(40)).omitted, 0);
+});
+
+test("commit shas are abbreviated", () => {
+  assert.equal(shortSha("6a4ecd9fb47abea650e5f21f41c1806fc71af28d"), "6a4ecd9fb47a");
 });

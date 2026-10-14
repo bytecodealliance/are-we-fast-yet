@@ -7,8 +7,8 @@ phases, three events (`virtual-cycles`, `instructions-retired`,
 
 | Run | What |
 |-----|------|
-| 00001 | Baseline. |
-| 00002 | Identical to 00001: a steady pair. |
+| 00001 | Baseline. No previous run, so no commit log. |
+| 00002 | Identical to 00001: a steady pair. One commit logged, one omitted. |
 | 00003 | Against 00002: `bz2` execution +1.5% (above the 1% threshold, with `instructions-retired` up too), `pulldown-cmark` compilation +0.5% (below), `bz2` compilation -3% (a speedup). |
 | 00004 | Every count doubled. Excluded in `excluded.toml`. |
 | 00005 | Same counts as 00003, but `valgrind-3.24.0`: a fingerprint change. |

@@ -86,7 +86,7 @@ jobs:
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
 
-      # Treeless: enough for the commit date and the issue's commit log.
+      # Treeless: enough for the commit date and the new commits' log.
       - name: Clone Wasmtime
         if: steps.check.outputs.skip == 'false'
         id: wasmtime
@@ -155,6 +155,7 @@ jobs:
             --wasmtime-commit-date "$DATE" \
             --started "$STARTED" \
             --workflow-run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" \
+            --wasmtime-repo "$RUNNER_TEMP/wasmtime" \
             ${SUITE:+--suite "$SUITE"})
           echo "run=$run" >> "$GITHUB_OUTPUT"
 

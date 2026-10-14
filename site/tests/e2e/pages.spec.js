@@ -53,6 +53,49 @@ test("run page shows metadata and changes", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("run page lists the commits new since the previous run", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("run.html?run=00003");
+  const commits = page.locator("#commits li");
+  await expect(commits).toHaveCount(3);
+  await expect(commits.first()).toContainText("Speed up the thing");
+  await expect(commits.first().locator("code")).toHaveText("3a3a3a3a3a3a");
+  await expect(commits.first().locator("a")).toHaveAttribute(
+    "href",
+    `https://github.com/bytecodealliance/wasmtime/commit/${"3a".repeat(20)}`,
+  );
+  // A subject with quotes in it renders as text, not markup.
+  await expect(commits.nth(1)).toContainText('Revert "Slow down the thing"');
+  await expect(page.getByRole("link", { name: "Compare on GitHub" })).toHaveAttribute(
+    "href",
+    `https://github.com/bytecodealliance/wasmtime/compare/${"2".repeat(40)}...${"3".repeat(40)}`,
+  );
+  expect(errors).toEqual([]);
+});
+
+test("run page notes commits left out of a long log", async ({ page }) => {
+  await page.goto("run.html?run=00002");
+  await expect(page.locator("#commits li")).toHaveCount(1);
+  await expect(page.locator("#commits")).toContainText("and 1 more");
+});
+
+test("commit subjects with markup render as text", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("run.html?run=00005");
+  const commit = page.locator("#commits li").first();
+  await expect(commit).toContainText("Return Box<dyn Error> & drop the <script> hack");
+  // The angle brackets are text, not an element the browser parsed.
+  await expect(page.locator("#commits script")).toHaveCount(0);
+  expect(errors).toEqual([]);
+});
+
+test("the first run has no commits to list", async ({ page }) => {
+  await page.goto("run.html?run=00001");
+  await expect(page.locator("#commits li")).toHaveCount(0);
+  await expect(page.locator("#commits")).toContainText("No previous run to compare with.");
+  await expect(page.getByRole("link", { name: "Compare on GitHub" })).toHaveCount(0);
+});
+
 test("bad parameters show a message", async ({ page }) => {
   for (const url of ["benchmark.html", "benchmark.html?b=nope", "run.html", "run.html?run=99999", "run.html?run=abc"]) {
     await page.goto(url);

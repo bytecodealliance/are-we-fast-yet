@@ -46,8 +46,9 @@ fn run_then_record() {
         workflow_run: None,
         suite: None,
         iterations: None,
+        wasmtime_repo: None,
     };
-    let run = record(root.path(), &options, &FakeProbe).unwrap();
+    let run = record(root.path(), &options, &FakeProbe, None).unwrap();
     assert_eq!(run, RunNumber::new(7).unwrap());
 
     let data = DataDir::new(root.path());
@@ -81,7 +82,7 @@ fn run_then_record() {
     assert!(measurements.iter().all(|m| m.engine.name == "wasmtime"));
 
     // Re-recording the same CSV gives byte-identical gzip.
-    let again = record(root.path(), &options, &FakeProbe).unwrap();
+    let again = record(root.path(), &options, &FakeProbe, None).unwrap();
     let csv = |r: RunNumber| std::fs::read(data.run_dir(r).join(awfy::runs::CSV)).unwrap();
     assert_eq!(csv(run), csv(again));
 }

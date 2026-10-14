@@ -5,6 +5,7 @@
 
 pub mod config;
 mod fingerprint;
+pub mod git;
 pub mod issue;
 pub mod latest;
 pub mod lint;

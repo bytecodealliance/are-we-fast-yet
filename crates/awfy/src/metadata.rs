@@ -1,5 +1,6 @@
 //! `metadata.toml`: one run's provenance. See `docs/data.md`.
 
+use crate::git::Commit;
 use anyhow::{Context, Result, bail};
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use std::collections::BTreeMap;
@@ -42,6 +43,21 @@ pub struct Wasmtime {
     pub commit: String,
     /// Committer date, the x axis of the trend plots.
     pub commit_date: Timestamp,
+    /// How many further commits `commits` leaves out.
+    ///
+    /// Declared before `commits` because TOML needs a table's values before
+    /// its sub-tables.
+    #[serde(default, skip_serializing_if = "is_zero")]
+    pub omitted_commits: u32,
+    /// Commits new since the previous run, newest first and `commit` itself
+    /// first of all. Capped at `record::MAX_COMMITS`; empty for the first run
+    /// and when the log was unavailable.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub commits: Vec<Commit>,
+}
+
+fn is_zero(n: &u32) -> bool {
+    *n == 0
 }
 
 /// Sightglass metadata.
@@ -203,6 +219,8 @@ pub(crate) mod tests {
             wasmtime: Wasmtime {
                 commit: "0123456789abcdef0123456789abcdef01234567".into(),
                 commit_date: "2026-10-09T22:41:05Z".parse().unwrap(),
+                omitted_commits: 0,
+                commits: vec![],
             },
             sightglass: Sightglass {
                 commit: "e38856287c8871228d7ff843e29028c381a71dd7".into(),

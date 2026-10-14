@@ -9,6 +9,10 @@
   in metadata.
 * The CSV is Sightglass's raw output with `engine` and `wasm` normalized so
   it is stable and reproducible across runs.
+* `[wasmtime]` records the Wasmtime commits new since the previous run, for
+  the run page's commit list. They are captured at record time, since the
+  site is built by a job with no Wasmtime clone to read them from. A long log
+  is truncated, with the rest counted in `omitted-commits`.
 
 ## Environment fingerprint
 
