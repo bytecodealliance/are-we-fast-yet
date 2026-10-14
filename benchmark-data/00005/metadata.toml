@@ -1,0 +1,55 @@
+schema = 1
+started = 2026-10-14T18:33:10Z
+finished = 2026-10-14T20:27:49Z
+
+[wasmtime]
+commit = "7ce0d50cdea89040b5d105a034a9c014748f8c77"
+commit-date = 2026-10-14T17:03:54Z
+
+[[wasmtime.commits]]
+commit = "7ce0d50cdea89040b5d105a034a9c014748f8c77"
+subject = "component: Add test for GuestTask leak (#14686)"
+
+[[wasmtime.commits]]
+commit = "aa03698bd18f4f25f60f7515665f80232398665b"
+subject = " fix panic in Direct{Source|Destination}::remaining  (#14740)"
+
+[[wasmtime.commits]]
+commit = "b15b1f7a0d87beecf2b1b3d3686a5b029e55098f"
+subject = "Update the `http` crate to fix an internal panic (#14728)"
+
+[[wasmtime.commits]]
+commit = "4c8d4f689538a37821d09be35396975245571088"
+subject = "error instead of panicking when `call` used to call async-lifted export (#14737)"
+
+[[wasmtime.commits]]
+commit = "cf14f919b25037437a18025593870a9a3f86295b"
+subject = "Be more strict about parsing path-with-query (#14727)"
+
+[[wasmtime.commits]]
+commit = "d7a44f54e4f7b3c24171e0d8a508f73d466437e7"
+subject = "wasi: don't follow a trailing-slash symlink in `rename` (#14729)"
+
+[[wasmtime.commits]]
+commit = "1fdc81b8b1b6c27fae2fce44933c4a0197bdc3ef"
+subject = "Fix alignment of VMFuncRefs in VMContext after an odd number of tags. (#14731)"
+
+[sightglass]
+commit = "181477a9d02909abf283deca6a00f4b8ae97ebd8"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "587ba62c55b772c7e736a7ab746856e78bb2e089"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38616016254"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmmprz5 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
