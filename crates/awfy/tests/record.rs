@@ -64,9 +64,9 @@ fn run_then_record() {
     );
 
     let measurements = data.measurements(run).unwrap();
-    // 2 benchmarks x 3 iterations x 3 phases x 2 events.
-    assert_eq!(measurements.len(), 36);
-    // Each surviving benchmark contributed all three of its iterations.
+    // 2 benchmarks x 6 iterations x 3 phases x 2 events.
+    assert_eq!(measurements.len(), 72);
+    // Each surviving benchmark contributed all six of its iterations.
     let mut per_benchmark = std::collections::BTreeMap::new();
     for m in &measurements {
         *per_benchmark.entry(m.wasm.to_string()).or_insert(0) += 1;
@@ -74,8 +74,8 @@ fn run_then_record() {
     assert_eq!(
         per_benchmark,
         [
-            ("a/benchmark.wasm".to_string(), 18),
-            ("c/c.wasm".to_string(), 18)
+            ("a/benchmark.wasm".to_string(), 36),
+            ("c/c.wasm".to_string(), 36)
         ]
         .into()
     );

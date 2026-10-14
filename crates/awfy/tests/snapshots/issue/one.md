@@ -6,16 +6,16 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 * This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml))
 * Threshold: significant at the 0.01 level and at least 1% more
 
-| benchmark | phase | effect size |
-|-----------|-------|-------------|
-| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | 1.015x +/- 0.000 more virtual cycles |
+| benchmark | phase | effect size | noise |
+|-----------|-------|-------------|-------|
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | 1.015x, 1.015x to 1.015x more virtual cycles | 0.020% -> 0.020% |
 
 <details>
 <summary>Other callgrind counters that changed for these benchmarks</summary>
 
-| benchmark | phase | effect size |
-|-----------|-------|-------------|
-| `bz2/benchmark.wasm` | execution | 1.012x +/- 0.000 more instructions retired |
+| benchmark | phase | effect size | noise |
+|-----------|-------|-------------|-------|
+| `bz2/benchmark.wasm` | execution | 1.012x, 1.012x to 1.012x more instructions retired | 0.020% -> 0.020% |
 
 </details>
 

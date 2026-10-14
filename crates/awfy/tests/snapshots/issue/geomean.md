@@ -6,9 +6,9 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 * This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml))
 * Threshold: significant at the 0.01 level and at least 1% more
 
-| benchmark | phase | effect size |
-|-----------|-------|-------------|
-| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.012x +/- 0.004 more virtual cycles |
+| benchmark | phase | effect size | noise |
+|-----------|-------|-------------|-------|
+| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.012x, 1.008x to 1.016x more virtual cycles | n/a |
 
 ### Commits
 

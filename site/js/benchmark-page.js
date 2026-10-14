@@ -46,7 +46,11 @@ start(async () => {
       const series = joinSeries(index, seriesPoints(json, phase, state.metric));
       const section = el("section", {}, el("h2", {}, phase));
       const plotBox = el("div", { class: "plot" });
-      if (series.xs.length > 0) section.append(el("p", { class: "muted" }, "Lower is better"));
+      if (series.xs.length > 0) {
+        section.append(
+          el("p", { class: "muted" }, "Lower is better. Points are the median of each run's samples; bars span their noise."),
+        );
+      }
       section.append(plotBox);
       box.append(section);
       if (series.xs.length === 0) {

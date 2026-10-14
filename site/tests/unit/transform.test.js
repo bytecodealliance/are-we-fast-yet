@@ -6,7 +6,9 @@ import {
   formatChange,
   formatCount,
   formatInstant,
+  formatNoise,
   formatTicks,
+  noiseBand,
   relativeToFirstVisible,
   shortSha,
 } from "../../js/transform.js";
@@ -82,4 +84,33 @@ test("the commit log carries the new commits and a compare link", () => {
 
 test("commit shas are abbreviated", () => {
   assert.equal(shortSha("6a4ecd9fb47abea650e5f21f41c1806fc71af28d"), "6a4ecd9fb47a");
+});
+
+test("the noise band spans the noise, centered on the point", () => {
+  // The bar's full width is the noise: 2% of 1000 is 20, so 990 to 1010.
+  assert.deepEqual(noiseBand(1000, 2), [990, 1010]);
+  assert.deepEqual(noiseBand(1000, 0.2), [999, 1001]);
+
+  // Relative plots divide every point by one base, so the band scales with
+  // the point and needs no adjustment.
+  const [low, high] = noiseBand(2, 2);
+  assert.deepEqual([low * 500, high * 500], noiseBand(1000, 2));
+
+  // Nothing to draw without a point or without noise.
+  assert.equal(noiseBand(null, 2), null);
+  assert.equal(noiseBand(undefined, 2), null);
+  assert.equal(noiseBand(1000, 0), null);
+  assert.equal(noiseBand(1000, null), null);
+  assert.equal(noiseBand(1000, undefined), null);
+  assert.equal(noiseBand(1000, NaN), null);
+});
+
+test("noise is formatted with enough digits to be visible", () => {
+  // Two decimals would round our quietest benchmarks to "0.00%", which is
+  // exactly the distinction the figure is for.
+  assert.equal(formatNoise(0.0186), "0.019%");
+  assert.equal(formatNoise(7.4359), "7.436%");
+  assert.equal(formatNoise(0), "0.000%");
+  assert.equal(formatNoise(null), "");
+  assert.equal(formatNoise(undefined), "");
 });

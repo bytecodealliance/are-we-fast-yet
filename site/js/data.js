@@ -42,29 +42,30 @@ export function benchmarkForSlug(index, s) {
 }
 
 /**
- * Join a `[[run, value], ...]` series with `index.runs`. Returns columns for
- * uPlot (`xs` in seconds since the epoch, by Wasmtime commit date) plus the
- * run behind each point. Points for runs missing from the index (e.g.
- * excluded since) are dropped.
+ * Join a `[[run, value, noise], ...]` series with `index.runs`. Returns
+ * columns for uPlot (`xs` in seconds since the epoch, by Wasmtime commit date)
+ * plus the run and the noise behind each point. Points for runs missing from
+ * the index (e.g. excluded since) are dropped.
  */
 export function joinSeries(index, points) {
   const runs = new Map(index.runs.map((r) => [r.run, r]));
   const joined = [];
-  for (const [run, value] of points ?? []) {
+  for (const [run, value, noise] of points ?? []) {
     const r = runs.get(run);
     if (!r) continue;
-    joined.push({ x: Date.parse(r.date) / 1000, y: value, run, wasmtime: r.wasmtime });
+    joined.push({ x: Date.parse(r.date) / 1000, y: value, noise: noise ?? null, run, wasmtime: r.wasmtime });
   }
   joined.sort((a, b) => a.x - b.x || a.run - b.run);
   return {
     xs: joined.map((p) => p.x),
     ys: joined.map((p) => p.y),
+    noises: joined.map((p) => p.noise),
     runs: joined.map((p) => p.run),
     shas: joined.map((p) => p.wasmtime),
   };
 }
 
-/** The `[run, value]` points for one phase and metric, or `[]`. */
+/** The `[run, value, noise]` points for one phase and metric, or `[]`. */
 export function seriesPoints(benchmarkJson, phase, metric) {
   return benchmarkJson?.series?.[phase]?.[metric] ?? [];
 }

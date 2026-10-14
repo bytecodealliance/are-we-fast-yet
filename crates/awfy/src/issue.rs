@@ -76,16 +76,17 @@ fn render(
         report.min_relative_change * 100.0
     )?;
 
-    writeln!(b, "| benchmark | phase | effect size |")?;
-    writeln!(b, "|-----------|-------|-------------|")?;
+    writeln!(b, "| benchmark | phase | effect size | noise |")?;
+    writeln!(b, "|-----------|-------|-------------|-------|")?;
     for c in &report.regressions {
         writeln!(
             b,
-            "| [`{}`]({site}benchmark.html?b={}&metric={VIRTUAL_CYCLES}) | {} | {} |",
+            "| [`{}`]({site}benchmark.html?b={}&metric={VIRTUAL_CYCLES}) | {} | {} | {} |",
             c.benchmark,
             slug(&c.benchmark),
             c.phase,
-            effect(c)
+            effect(c),
+            crate::regressions::noise(c),
         )?;
     }
     writeln!(b)?;
@@ -96,10 +97,17 @@ fn render(
             b,
             "<summary>Other callgrind counters that changed for these benchmarks</summary>\n"
         )?;
-        writeln!(b, "| benchmark | phase | effect size |")?;
-        writeln!(b, "|-----------|-------|-------------|")?;
+        writeln!(b, "| benchmark | phase | effect size | noise |")?;
+        writeln!(b, "|-----------|-------|-------------|-------|")?;
         for c in &report.other_counters {
-            writeln!(b, "| `{}` | {} | {} |", c.benchmark, c.phase, effect(c))?;
+            writeln!(
+                b,
+                "| `{}` | {} | {} | {} |",
+                c.benchmark,
+                c.phase,
+                effect(c),
+                crate::regressions::noise(c),
+            )?;
         }
         writeln!(b, "\n</details>\n")?;
     }
@@ -148,12 +156,11 @@ fn escape(subject: &str) -> String {
     out
 }
 
-/// E.g. `1.23x +/- 0.004 more virtual cycles`.
+/// E.g. `1.230x, 1.210x to 1.250x more virtual cycles`.
 fn effect(c: &Change) -> String {
     format!(
-        "{:.3}x +/- {:.3} {} {}",
-        c.ratio,
-        c.ratio_ci,
+        "{} {} {}",
+        crate::regressions::interval(c),
         if c.is_increase() { "more" } else { "fewer" },
         c.event.replace('-', " ")
     )
@@ -288,15 +295,20 @@ mod tests {
 
     fn change(benchmark: &str, phase: Phase, event: &str, old: f64, new: f64) -> Change {
         let ratio = if new >= old { new / old } else { old / new };
+        let geomean = benchmark == GEOMEAN;
         Change {
             benchmark: benchmark.into(),
             phase,
             event: event.into(),
-            old_mean: old,
-            new_mean: new,
+            old,
+            new,
             relative_change: (new - old) / old,
             ratio,
-            ratio_ci: 0.004,
+            ratio_low: ratio - 0.004,
+            ratio_high: ratio + 0.004,
+            // The suite geomean has no samples of its own, so no noise.
+            old_noise: (!geomean).then_some(0.012),
+            new_noise: (!geomean).then_some(0.015),
         }
     }
 

@@ -2,66 +2,93 @@
   "changes": [
     {
       "benchmark": "Geomean",
+      "benchmarks": 2,
       "change": -0.012655,
-      "mean": 1710131.67,
+      "median": 1710131.57,
+      "noise": 0.0021,
       "phase": "compilation",
-      "previous": 1732051
+      "previous": 1732050.81,
+      "previous-noise": 0.0022
     },
     {
       "benchmark": "Geomean",
+      "benchmarks": 2,
       "change": 0,
-      "mean": 14142.33,
+      "median": 14142.14,
+      "noise": 0.0171,
       "phase": "instantiation",
-      "previous": 14142.33
+      "previous": 14142.14,
+      "previous-noise": 0.0171
     },
     {
       "benchmark": "Geomean",
+      "benchmarks": 2,
       "change": 0.007472,
-      "mean": 1007472,
+      "median": 1007472.08,
+      "noise": 0.0021,
       "phase": "execution",
-      "previous": 1000000
+      "previous": 1000000,
+      "previous-noise": 0.0022
     },
     {
       "benchmark": "bz2/benchmark.wasm",
+      "benchmarks": null,
       "change": -0.03,
-      "mean": 970000,
+      "median": 970000,
+      "noise": 0.0186,
       "phase": "compilation",
-      "previous": 1000000
+      "previous": 1000000,
+      "previous-noise": 0.02
     },
     {
       "benchmark": "bz2/benchmark.wasm",
+      "benchmarks": null,
       "change": 0,
-      "mean": 10000,
+      "median": 10000,
+      "noise": 0.2,
       "phase": "instantiation",
-      "previous": 10000
+      "previous": 10000,
+      "previous-noise": 0.2
     },
     {
       "benchmark": "bz2/benchmark.wasm",
+      "benchmarks": null,
       "change": 0.015,
-      "mean": 2030000,
+      "median": 2030000,
+      "noise": 0.0197,
       "phase": "execution",
-      "previous": 2000000
+      "previous": 2000000,
+      "previous-noise": 0.02
     },
     {
       "benchmark": "pulldown-cmark/benchmark.wasm",
+      "benchmarks": null,
       "change": 0.005,
-      "mean": 3015000,
+      "median": 3015000,
+      "noise": 0.0199,
       "phase": "compilation",
-      "previous": 3000000
+      "previous": 3000000,
+      "previous-noise": 0.02
     },
     {
       "benchmark": "pulldown-cmark/benchmark.wasm",
+      "benchmarks": null,
       "change": 0,
-      "mean": 20000,
+      "median": 20000,
+      "noise": 0.1,
       "phase": "instantiation",
-      "previous": 20000
+      "previous": 20000,
+      "previous-noise": 0.1
     },
     {
       "benchmark": "pulldown-cmark/benchmark.wasm",
+      "benchmarks": null,
       "change": 0,
-      "mean": 500000,
+      "median": 500000,
+      "noise": 0.02,
       "phase": "execution",
-      "previous": 500000
+      "previous": 500000,
+      "previous-noise": 0.02
     }
   ],
   "fingerprint-change": null,
@@ -72,7 +99,7 @@
     },
     "config": {
       "engine-flags": "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2",
-      "iterations": 3
+      "iterations": 6
     },
     "environment": {
       "cpu": "AMD EPYC 7763 64-Core Processor",

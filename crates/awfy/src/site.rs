@@ -10,6 +10,7 @@ use crate::slug::slug;
 use anyhow::{Context, Result, bail};
 use serde::{Serialize, Serializer};
 use sightglass_analysis::geomean::{self, GEOMEAN};
+use sightglass_analysis::summarize;
 use sightglass_data::{Measurement, Phase};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
@@ -79,13 +80,19 @@ struct IndexRun {
     fingerprint_change: Option<String>,
 }
 
+/// One plotted point: a run, its central value, and its noise. See [`Stat`].
+type Point = (RunNumber, Num, Num);
+
+/// A benchmark's points by phase, then by metric, each in run order.
+type Series = BTreeMap<String, BTreeMap<String, Vec<Point>>>;
+
 /// The benchmark data series for a particular Wasm benchmark.
 #[derive(Serialize)]
 struct BenchmarkSeries {
     /// The Wasm benchmark.
     benchmark: String,
-    /// A map `phase -> metric -> [run, mean]` points in run order.
-    series: BTreeMap<String, BTreeMap<String, Vec<(RunNumber, Num)>>>,
+    /// A map `phase -> metric -> [run, center, noise]` points in run order.
+    series: Series,
 }
 
 /// The data for a particular benchmark run for `run.html`.
@@ -115,12 +122,18 @@ struct RunChange {
     benchmark: String,
     /// The benchmark phase that changed.
     phase: String,
-    /// The mean of this run, after the change.
-    mean: Num,
-    /// The mean of the previous run.
+    /// This run's median count, or its geomean for [`GEOMEAN`].
+    median: Num,
+    /// How far this run's counts spread, as a percentage. See [`Stat::noise`].
+    noise: Num,
+    /// The previous run's median.
     previous: Option<Num>,
-    /// `(mean - previous) / previous`.
+    /// The previous run's noise.
+    previous_noise: Option<Num>,
+    /// `(median - previous) / previous`.
     change: Option<Num>,
+    /// How many benchmarks the geomean aggregated. See [`Stat::benchmarks`].
+    benchmarks: Option<usize>,
 }
 
 /// A number written compactly: an integer when integral, otherwise rounded
@@ -146,6 +159,12 @@ impl Num {
     fn ratio(value: f64) -> Self {
         Self { value, digits: 6 }
     }
+
+    /// A percentage. Four decimal places: real benchmarks spread anywhere from
+    /// 0.06% to 7%, and two places would round most of them to zero.
+    fn percent(value: f64) -> Self {
+        Self { value, digits: 4 }
+    }
 }
 
 impl Serialize for Num {
@@ -160,12 +179,32 @@ impl Serialize for Num {
     }
 }
 
+/// What the site plots for one (benchmark, phase, event) in one run: a
+/// central value and how far the samples around it spread.
+#[derive(Clone, Copy, Debug)]
+struct Stat {
+    /// The median count, or the geometric mean for [`GEOMEAN`].
+    center: f64,
+    /// How far the counts spread, as a percentage of `center`.
+    ///
+    /// For a benchmark this is `Summary::noise`: the interquartile range over
+    /// the median, or the full range over it when there are too few samples to
+    /// set outliers aside. For [`GEOMEAN`] it is `geomean_standard_error`,
+    /// which is a different quantity; see there.
+    noise: f64,
+    /// How many benchmarks [`GEOMEAN`] aggregated, and `None` for an ordinary
+    /// benchmark. A count that changes between runs means the geomean is
+    /// summarizing different sets and its series is not comparable with
+    /// itself, so the site shows it.
+    benchmarks: Option<usize>,
+}
+
 /// One loaded visible run.
 struct Run {
     number: RunNumber,
     metadata: Metadata,
-    /// `(benchmark, phase, event)` to mean count, Geomean included.
-    means: BTreeMap<(String, Phase, String), f64>,
+    /// `(benchmark, phase, event)` to its statistics, Geomean included.
+    stats: BTreeMap<(String, Phase, String), Stat>,
 }
 
 /// Run `awfy site` with the given options.
@@ -246,33 +285,126 @@ fn load(data: &DataDir) -> Result<Vec<Run>> {
         .into_iter()
         .map(|number| {
             let metadata = data.metadata(number)?;
-            let mut measurements = data.measurements(number)?;
+            let measurements = data.measurements(number)?;
             // A geomean over a different set of benchmarks is not comparable
             // with its neighbors.
-            if metadata.failures.is_empty() {
-                geomean::add(&mut measurements);
-            }
+            let with_geomean = metadata.failures.is_empty();
             Ok(Run {
                 number,
                 metadata,
-                means: means(&measurements),
+                stats: stats(&measurements, with_geomean),
             })
         })
         .collect()
 }
 
-fn means(measurements: &[Measurement<'_>]) -> BTreeMap<(String, Phase, String), f64> {
-    let mut sums: BTreeMap<(String, Phase, String), (u128, u64)> = BTreeMap::new();
-    for m in measurements {
-        let (sum, n) = sums
-            .entry((m.wasm.to_string(), m.phase, m.event.to_string()))
-            .or_default();
-        *sum += u128::from(m.count);
-        *n += 1;
+/// Summarize one run's measurements, adding a [`GEOMEAN`] row per
+/// (phase, event) when `with_geomean`.
+fn stats(
+    measurements: &[Measurement<'_>],
+    with_geomean: bool,
+) -> BTreeMap<(String, Phase, String), Stat> {
+    // A run measures one engine, so each summary is one (benchmark, phase,
+    // event).
+    let mut stats: BTreeMap<(String, Phase, String), Stat> = summarize::calculate(measurements)
+        .into_iter()
+        .map(|s| {
+            (
+                (s.wasm.to_string(), s.phase, s.event.to_string()),
+                Stat {
+                    center: s.median,
+                    noise: s.noise(),
+                    benchmarks: None,
+                },
+            )
+        })
+        .collect();
+
+    if with_geomean {
+        let errors = geomean_standard_errors(measurements);
+        for g in geomean::summarize(measurements) {
+            let key = (GEOMEAN.to_string(), g.phase, g.event.to_string());
+            let noise = errors.get(&key).copied().unwrap_or(0.0);
+            stats.insert(
+                key,
+                Stat {
+                    center: g.geomean,
+                    noise,
+                    benchmarks: Some(g.benchmarks),
+                },
+            );
+        }
     }
-    sums.into_iter()
-        .map(|(k, (sum, n))| (k, sum as f64 / n as f64))
-        .collect()
+
+    stats
+}
+
+/// The standard error of each suite geomean, as a percentage, keyed like
+/// [`Run::stats`].
+///
+/// The geomean aggregates the benchmarks' *mean* counts, so it has no samples
+/// of its own and nothing that `Summary::noise` could measure. What it has
+/// instead is how precisely those means pin it down, which is the standard
+/// error of `ln(geomean)` by the delta method:
+///
+/// ```text
+/// u_i = var(benchmark_i) / (n_i * mean(benchmark_i)^2)
+/// standard_error = sqrt(sum(u_i)) / k
+/// ```
+///
+/// This is the same quantity `sightglass_analysis::geomean` builds its
+/// confidence interval from, for one engine rather than a comparison of two;
+/// see that module's documentation. Note it is a standard error rather than a
+/// spread, so unlike `Summary::noise` it shrinks as samples are added. The
+/// site labels the two differently for that reason.
+fn geomean_standard_errors(
+    measurements: &[Measurement<'_>],
+) -> BTreeMap<(String, Phase, String), f64> {
+    // Only the benchmarks `geomean::summarize` aggregated contribute, so group
+    // the counts the same way and then keep that set.
+    let mut counts: BTreeMap<(Phase, String), BTreeMap<String, Vec<f64>>> = BTreeMap::new();
+    for m in measurements {
+        counts
+            .entry((m.phase, m.event.to_string()))
+            .or_default()
+            .entry(m.wasm.to_string())
+            .or_default()
+            .push(m.count as f64);
+    }
+
+    let mut errors = BTreeMap::new();
+    for ((phase, event), benchmarks) in counts {
+        // A benchmark whose counts average zero has no logarithm, and
+        // `geomean::summarize` leaves it out; leave it out of the error too.
+        let usable: Vec<&Vec<f64>> = benchmarks
+            .values()
+            .filter(|c| !c.is_empty() && c.iter().sum::<f64>() > 0.0)
+            .collect();
+        if usable.len() < 2 {
+            continue;
+        }
+
+        let mut u_total = 0.0;
+        for samples in &usable {
+            let n = samples.len() as f64;
+            let mean = samples.iter().sum::<f64>() / n;
+            // The sample variance, matching the significance tests. A single
+            // sample has none.
+            let var = if samples.len() < 2 {
+                0.0
+            } else {
+                samples.iter().map(|c| (c - mean).powi(2)).sum::<f64>() / (n - 1.0)
+            };
+            u_total += var / (n * mean * mean);
+        }
+
+        let k = usable.len() as f64;
+        errors.insert(
+            (GEOMEAN.to_string(), phase, event),
+            u_total.sqrt() / k * 100.0,
+        );
+    }
+    errors
 }
 
 /// Every generated file, as a path under `data/` and its JSON.
@@ -281,7 +413,7 @@ fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, St
     let mut phases = BTreeSet::new();
     let mut metrics = BTreeSet::new();
     for run in runs {
-        for (b, p, e) in run.means.keys() {
+        for (b, p, e) in run.stats.keys() {
             benchmarks.insert(b.clone());
             phases.insert(*p);
             metrics.insert(e.clone());
@@ -340,16 +472,20 @@ fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, St
     files.push(("index.json".into(), serde_json::to_string(&index)?));
 
     for benchmark in &benchmarks {
-        let mut series: BTreeMap<String, BTreeMap<String, Vec<(RunNumber, Num)>>> = BTreeMap::new();
+        let mut series = Series::new();
         for run in runs {
-            for ((b, phase, event), &mean) in &run.means {
+            for ((b, phase, event), stat) in &run.stats {
                 if b == benchmark {
                     series
                         .entry(phase.to_string())
                         .or_default()
                         .entry(event.clone())
                         .or_default()
-                        .push((run.number, Num::count(mean)));
+                        .push((
+                            run.number,
+                            Num::count(stat.center),
+                            Num::percent(stat.noise),
+                        ));
                 }
             }
         }
@@ -363,19 +499,22 @@ fn generate(runs: &[Run], repo: &str, now: Timestamp) -> Result<Vec<(PathBuf, St
     for (i, run) in runs.iter().enumerate() {
         let previous = i.checked_sub(1).map(|i| &runs[i]);
         let mut changes: Vec<RunChange> = run
-            .means
+            .stats
             .iter()
             .filter(|((_, _, e), _)| e == VIRTUAL_CYCLES)
-            .map(|((b, phase, e), &mean)| {
+            .map(|((b, phase, e), stat)| {
                 let before = previous
-                    .and_then(|p| p.means.get(&(b.clone(), *phase, e.clone())))
+                    .and_then(|p| p.stats.get(&(b.clone(), *phase, e.clone())))
                     .copied();
                 RunChange {
                     benchmark: b.clone(),
                     phase: phase.to_string(),
-                    mean: Num::count(mean),
-                    previous: before.map(Num::count),
-                    change: before.map(|before| Num::ratio((mean - before) / before)),
+                    median: Num::count(stat.center),
+                    noise: Num::percent(stat.noise),
+                    previous: before.map(|b| Num::count(b.center)),
+                    previous_noise: before.map(|b| Num::percent(b.noise)),
+                    change: before.map(|b| Num::ratio((stat.center - b.center) / b.center)),
+                    benchmarks: stat.benchmarks,
                 }
             })
             .collect();
@@ -553,11 +692,17 @@ mod tests {
         let mut run = Run {
             number: RunNumber::new(1).unwrap(),
             metadata: crate::metadata::tests::example(),
-            means: BTreeMap::new(),
+            stats: BTreeMap::new(),
         };
         for b in ["a/b.wasm", "a-b.wasm"] {
-            run.means
-                .insert((b.into(), Phase::Execution, VIRTUAL_CYCLES.into()), 1.0);
+            run.stats.insert(
+                (b.into(), Phase::Execution, VIRTUAL_CYCLES.into()),
+                Stat {
+                    center: 1.0,
+                    noise: 0.0,
+                    benchmarks: None,
+                },
+            );
         }
         assert!(generate(&[run], "a/b", now()).is_err());
     }

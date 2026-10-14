@@ -2,7 +2,7 @@
 // environment-change markers, hover details, click-through to runs, and
 // drag-to-zoom kept in the URL.
 
-import { formatChange, formatCount, formatInstant, formatTicks, relativeToFirstVisible } from "./transform.js";
+import { formatChange, formatCount, formatInstant, formatNoise, formatTicks, noiseBand, relativeToFirstVisible } from "./transform.js";
 
 const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 
@@ -50,11 +50,13 @@ export function plot(container, series, options) {
         },
       },
       // uPlot passes the min and max of the points in the visible x range.
-      // Pad them, without uPlot's default of stretching to zero.
+      // Pad them, without uPlot's default of stretching to zero. The error
+      // bars can reach past the points, so widen to whatever they need first.
       y: {
         auto: true,
         range: (u, min, max) => {
           if (min === null || max === null) return [0, 1];
+          [min, max] = withBars(u, series, ys, min, max);
           const pad = (max - min) * 0.1 || Math.abs(max) * 0.01 || 1;
           return [min - pad, max + pad];
         },
@@ -82,7 +84,8 @@ export function plot(container, series, options) {
       },
     ],
     hooks: {
-      draw: [(u) => drawMarkers(u, markers, small)],
+      // Bars first, so the points draw on top of their own bar.
+      draw: [(u) => drawBars(u, series, ys, small), (u) => drawMarkers(u, markers, small)],
       setCursor: tooltip ? [(u) => updateTooltip(u, tooltip, series, ys, format)] : [],
       setScale: [
         (u, key) => {
@@ -117,6 +120,58 @@ export function plot(container, series, options) {
     u.over.addEventListener("dblclick", () => onZoom?.(null, null));
   }
   return u;
+}
+
+/**
+ * Widen `[min, max]` to cover the error bars of the points in it, so a bar
+ * never runs off the top or bottom of the plot.
+ */
+function withBars(u, series, ys, min, max) {
+  for (let i = 0; i < ys.length; i++) {
+    const band = noiseBand(ys[i], series.noises?.[i]);
+    if (!band) continue;
+    // Only points uPlot counted toward this range, i.e. the visible ones.
+    if (ys[i] < min || ys[i] > max) continue;
+    min = Math.min(min, band[0]);
+    max = Math.max(max, band[1]);
+  }
+  return [min, max];
+}
+
+/**
+ * Draw each point's error bar: a vertical line spanning the point's noise,
+ * with a cap at each end.
+ *
+ * Skipped on the overview's small plots, where at 140px the bars would be a
+ * smear rather than a reading.
+ */
+function drawBars(u, series, ys, small) {
+  if (small) return;
+  const ctx = u.ctx;
+  const px = devicePixelRatio;
+  const cap = 3 * px;
+  ctx.save();
+  ctx.strokeStyle = css("--accent");
+  ctx.lineWidth = px;
+  for (let i = 0; i < ys.length; i++) {
+    const band = noiseBand(ys[i], series.noises?.[i]);
+    if (!band) continue;
+    const x = Math.round(u.valToPos(series.xs[i], "x", true));
+    if (x < u.bbox.left || x > u.bbox.left + u.bbox.width) continue;
+    const [low, high] = band.map((v) => Math.round(u.valToPos(v, "y", true)));
+    // A bar shorter than its own caps reads as a blob; the point already says
+    // where the value is, so draw nothing.
+    if (Math.abs(low - high) < 2 * px) continue;
+    ctx.beginPath();
+    ctx.moveTo(x, low);
+    ctx.lineTo(x, high);
+    ctx.moveTo(x - cap, low);
+    ctx.lineTo(x + cap, low);
+    ctx.moveTo(x - cap, high);
+    ctx.lineTo(x + cap, high);
+    ctx.stroke();
+  }
+  ctx.restore();
 }
 
 function drawMarkers(u, markers, small) {
@@ -155,7 +210,11 @@ function updateTooltip(u, tooltip, series, ys, format) {
   }
   const run = String(series.runs[i]).padStart(5, "0");
   const when = formatInstant(series.xs[i]);
-  tooltip.textContent = `${format(ys[i])} · run ${run} · ${series.shas[i].slice(0, 12)} · ${when}`;
+  const noise = formatNoise(series.noises?.[i]);
+  const parts = [format(ys[i])];
+  if (noise) parts.push(`± ${noise}`);
+  parts.push(`run ${run}`, series.shas[i].slice(0, 12), when);
+  tooltip.textContent = parts.join(" · ");
   tooltip.hidden = false;
   const left = u.valToPos(series.xs[i], "x");
   const top = u.valToPos(ys[i], "y");

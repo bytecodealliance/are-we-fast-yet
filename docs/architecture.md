@@ -37,9 +37,10 @@ hardware or external services, benchmarking PRs, and backfilling history.
   unit is about 25 minutes.
 * **Pinned flags drift.** New Cranelift ISA flags stay off until added to
   `config.toml`.
-* **Determinism.** Callgrind variance is near zero, so tiny changes are
-  significant. A minimum effect size filters them (see
-  [regressions.md](regressions.md)).
+* **Determinism.** Callgrind variance is small but not zero: most benchmarks
+  spread under 0.1% between processes, a few over 1%. Each run's noise is
+  reported on its page and as error bars on the plots, and a minimum effect
+  size filters out the tiny changes (see [regressions.md](regressions.md)).
 * **Repo growth.** Roughly 25 KiB per recorded run. At most 8 runs a day, so
   up to roughly 75 MiB per year if `main` changes before every run; less in
   practice, since unchanged commits are skipped.

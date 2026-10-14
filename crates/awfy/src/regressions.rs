@@ -7,7 +7,7 @@ use crate::metadata::Metadata;
 use crate::runs::{DataDir, RunNumber};
 use anyhow::{Context, Result};
 use serde::{Serialize, Serializer};
-use sightglass_analysis::geomean::{self, GEOMEAN};
+use sightglass_analysis::geomean::{self, GEOMEAN, GeomeanEffectSize};
 use sightglass_data::{EffectSize, Engine, Measurement, Phase};
 use std::collections::BTreeSet;
 use std::fmt::Write as _;
@@ -118,17 +118,29 @@ pub struct Change {
     pub phase: Phase,
     /// The event that changed.
     pub event: String,
-    /// The baseline run's mean count.
-    pub old_mean: f64,
-    /// The new run's mean count.
-    pub new_mean: f64,
-    /// `(new - old) / old`.
+    /// The baseline run's median count, or its geomean for [`GEOMEAN`].
+    pub old: f64,
+    /// The new run's median count, or its geomean for [`GEOMEAN`].
+    pub new: f64,
+    /// How much bigger the new run's counts are, signed: `+0.015` is 1.5%
+    /// more. This is the tested ratio rather than a difference of the two
+    /// counts above, so that `min-relative-change` filters on the same
+    /// quantity the significance test bounds.
     pub relative_change: f64,
     /// `new / old` for increases and `old / new` for decreases, so always at
-    /// least 1, with its confidence interval's half width.
+    /// least 1.
     pub ratio: f64,
-    /// The ratio's confidence interval.
-    pub ratio_ci: f64,
+    /// The low end of `ratio`'s confidence interval. The interval is not
+    /// symmetric about `ratio`, so both ends are kept.
+    pub ratio_low: f64,
+    /// The high end of `ratio`'s confidence interval.
+    pub ratio_high: f64,
+    /// How far the baseline's counts spread, as a percentage of its median.
+    /// `None` for [`GEOMEAN`], which aggregates means and has no samples of
+    /// its own to spread.
+    pub old_noise: Option<f64>,
+    /// The same for the new run. See `old_noise`.
+    pub new_noise: Option<f64>,
 }
 
 impl Change {
@@ -138,23 +150,64 @@ impl Change {
     }
 
     /// Engine `a` must be named `baseline` and engine `b` named `run`.
+    ///
+    /// Only call this for a significant `e`, which always has an interval.
     fn from_effect_size(e: &EffectSize<'_>, baseline: &str, run: &str) -> Self {
         assert_eq!(e.a_engine.name, baseline);
         assert_eq!(e.b_engine.name, run);
-        let (ratio, ratio_ci) = if e.b_mean >= e.a_mean {
+        // `e.ratio` is the new run's counts over the baseline's, so the
+        // baseline is the faster engine when it exceeds 1.
+        let (ratio, interval) = if e.ratio >= 1.0 {
             e.b_speed_up_over_a()
         } else {
             e.a_speed_up_over_b()
         };
+        let (ratio_low, ratio_high) = interval.expect("a significant change has an interval");
         Self {
             benchmark: e.wasm.to_string(),
             phase: e.phase,
             event: e.event.to_string(),
-            old_mean: e.a_mean,
-            new_mean: e.b_mean,
-            relative_change: (e.b_mean - e.a_mean) / e.a_mean,
+            old: e.a_median,
+            new: e.b_median,
+            relative_change: e.ratio - 1.0,
             ratio,
-            ratio_ci: ratio_ci.abs(),
+            ratio_low,
+            ratio_high,
+            old_noise: Some(e.a_noise()),
+            new_noise: Some(e.b_noise()),
+        }
+    }
+
+    /// The same for a suite geomean, which is compared as a whole rather than
+    /// as a benchmark. Engine `a` must be named `baseline` and `b` named `run`.
+    ///
+    /// Only call this for a significant `e`, which always has an interval.
+    fn from_geomean(e: &GeomeanEffectSize<'_>, baseline: &str, run: &str) -> Self {
+        assert_eq!(e.a_engine.name, baseline);
+        assert_eq!(e.b_engine.name, run);
+        let (low, high, _dof) = e
+            .confidence_interval
+            .expect("a significant change has an interval");
+        // As in `from_effect_size`, except that inverting the ratio here means
+        // inverting the interval by hand: a `GeomeanEffectSize` has no
+        // `a_speed_up_over_b`.
+        let (ratio, ratio_low, ratio_high) = if e.ratio >= 1.0 {
+            (e.ratio, low, high)
+        } else {
+            (1.0 / e.ratio, 1.0 / high, 1.0 / low)
+        };
+        Self {
+            benchmark: GEOMEAN.to_string(),
+            phase: e.phase,
+            event: e.event.to_string(),
+            old: e.a_geomean,
+            new: e.b_geomean,
+            relative_change: e.ratio - 1.0,
+            ratio,
+            ratio_low,
+            ratio_high,
+            old_noise: None,
+            new_noise: None,
         }
     }
 
@@ -286,25 +339,33 @@ fn compare_measurements(
         );
     }
 
-    // Every event gets a Geomean, for the other-counters section too.
-    geomean::add(&mut measurements);
+    // The suite geomean is compared as a whole rather than as a synthetic
+    // benchmark, so it is a second pass over the same measurements. Every
+    // event gets one, for the other-counters section too.
     let effect_sizes = sightglass_analysis::effect_size::calculate(significance, &measurements)?;
+    let geomeans = geomean::effect_size(significance, &measurements);
 
     let mut regressions = Vec::new();
     let mut speedups = Vec::new();
     let mut others = Vec::new();
-    for e in &effect_sizes {
-        if !e.is_significant() {
-            continue;
-        }
-        let change = Change::from_effect_size(e, &a, &b);
+    let mut classify = |event: &str, change: Change| {
         if change.relative_change.abs() < min {
-            continue;
+            return;
         }
-        match (e.event == VIRTUAL_CYCLES, change.is_increase()) {
+        match (event == VIRTUAL_CYCLES, change.is_increase()) {
             (true, true) => regressions.push(change),
             (true, false) => speedups.push(change),
             (false, _) => others.push(change),
+        }
+    };
+    for e in &geomeans {
+        if e.is_significant() {
+            classify(&e.event, Change::from_geomean(e, &a, &b));
+        }
+    }
+    for e in &effect_sizes {
+        if e.is_significant() {
+            classify(&e.event, Change::from_effect_size(e, &a, &b));
         }
     }
     let regressed: BTreeSet<(&str, Phase)> = regressions
@@ -355,8 +416,8 @@ fn summary(outcome: &Outcome) -> String {
             writeln!(s, "## Regressions: run {} vs. {}\n", r.run, r.baseline).unwrap();
             writeln!(
                 s,
-                "Wasmtime `{}`..`{}`. A change counts when it is significant at \
-                 the {} level and at least {}.\n",
+                "Wasmtime `{}`..`{}`. A change counts when a Mann-Whitney U test \
+                 finds it significant at the {} level and it is at least {}.\n",
                 short(&r.baseline_commit),
                 short(&r.commit),
                 r.significance_level,
@@ -383,21 +444,39 @@ fn change_table(s: &mut String, title: &str, changes: &[Change]) {
         return;
     }
     writeln!(s, "### {title} ({})\n", changes.len()).unwrap();
-    writeln!(s, "| benchmark | phase | change |").unwrap();
-    writeln!(s, "|-----------|-------|--------|").unwrap();
+    writeln!(s, "| benchmark | phase | change | noise |").unwrap();
+    writeln!(s, "|-----------|-------|--------|-------|").unwrap();
     for c in changes {
         writeln!(
             s,
-            "| `{}` | {} | {} ({:.3}x +/- {:.3}) |",
+            "| `{}` | {} | {} ({}) | {} |",
             c.benchmark,
             c.phase,
             signed_percent(c.relative_change),
-            c.ratio,
-            c.ratio_ci
+            interval(c),
+            noise(c),
         )
         .unwrap();
     }
     writeln!(s).unwrap();
+}
+
+/// A change's ratio and its confidence interval, e.g.
+/// `1.015x, 1.010x to 1.020x`.
+pub fn interval(c: &Change) -> String {
+    format!(
+        "{:.3}x, {:.3}x to {:.3}x",
+        c.ratio, c.ratio_low, c.ratio_high
+    )
+}
+
+/// How far each run's counts spread, e.g. `0.012% -> 0.015%`. The suite
+/// geomean aggregates means rather than samples, so it has no spread.
+pub fn noise(c: &Change) -> String {
+    match (c.old_noise, c.new_noise) {
+        (Some(old), Some(new)) => format!("{old:.3}% -> {new:.3}%"),
+        _ => "n/a".to_string(),
+    }
 }
 
 /// The first 12 characters of a SHA.
@@ -620,33 +699,40 @@ mod tests {
 
     #[test]
     fn zero_variance() {
-        // Identical samples: `behrens_fisher` errs on zero variance and
-        // Sightglass falls back to a zero-width interval. An exact tie must
-        // still be unchanged.
-        let same = [1000, 1000, 1000];
+        // An exact tie is every sample tied, so the U test cannot rank the two
+        // runs apart at all and reports no difference.
+        let same = [1000; 6];
         let r = compare_counts(&[("a.wasm", Phase::Execution, &same, &same)]);
         assert!(r.regressions.is_empty() && r.speedups.is_empty());
 
-        // Any difference is then "significant", so the threshold decides.
+        // Any difference separates the samples completely, which is as
+        // significant as six of each can be, so the threshold decides.
         let r = compare_counts(&[
-            ("a.wasm", Phase::Execution, &same, &[1005, 1005, 1005]),
-            ("b.wasm", Phase::Execution, &same, &[1020, 1020, 1020]),
+            ("a.wasm", Phase::Execution, &same, &[1005; 6]),
+            ("b.wasm", Phase::Execution, &same, &[1020; 6]),
         ]);
-        assert_eq!(r.regressions.len(), 2, "{:?}", r.regressions);
-        assert_eq!(r.regressions[0].benchmark, GEOMEAN);
-        assert_eq!(r.regressions[1].benchmark, "b.wasm");
+        let names: Vec<&str> = r.regressions.iter().map(|c| c.benchmark.as_str()).collect();
+        // `a.wasm` moved 0.5%, under the fixture's 1% threshold.
+        //
+        // The Geomean is absent for a different reason: it is compared by a
+        // delta-method interval built from each benchmark's variance, and
+        // these samples have none, so it has no interval and is never
+        // significant. Deterministic counts in the real data always vary a
+        // little between processes.
+        assert_eq!(names, ["b.wasm"], "{:?}", r.regressions);
     }
 
     #[test]
     fn insignificant() {
-        // A big change in the mean that the noise swamps.
+        // A big change in the median that the spread swamps: the two runs'
+        // samples interleave, so no ranking separates them.
         let r = compare_counts(&[(
             "a.wasm",
             Phase::Execution,
-            &[1000, 2000, 3000],
-            &[1100, 2100, 3100],
+            &[1000, 2000, 3000, 4000, 5000, 6000],
+            &[1100, 2100, 3100, 4100, 5100, 6100],
         )]);
-        assert!(r.regressions.is_empty());
+        assert!(r.regressions.is_empty(), "{:?}", r.regressions);
     }
 
     #[test]
@@ -655,14 +741,14 @@ mod tests {
             (
                 "a.wasm",
                 Phase::Compilation,
-                &[100, 101, 99],
-                &[150, 151, 149],
+                &[100, 101, 99, 102, 98, 100],
+                &[150, 151, 149, 152, 148, 150],
             ),
             (
                 "b.wasm",
                 Phase::Compilation,
-                &[1000, 1001, 999],
-                &[1100, 1101, 1099],
+                &[1000, 1001, 999, 1002, 998, 1000],
+                &[1100, 1101, 1099, 1102, 1098, 1100],
             ),
         ]);
         let order: Vec<&str> = r.regressions.iter().map(|c| c.benchmark.as_str()).collect();

@@ -53,6 +53,25 @@ test("run page shows metadata and changes", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("run page shows each benchmark's noise", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("run.html?run=00003");
+  const header = page.getByRole("button", { name: /Noise/ });
+  await expect(header).toBeVisible();
+
+  // bz2 execution spans 2030000 +/- 200, so 400/2030000 as a percentage.
+  const row = page
+    .locator("#changes tbody tr", { hasText: "bz2/benchmark.wasm" })
+    .filter({ hasText: "execution" });
+  await expect(row.locator("td").last()).toHaveText("0.020%");
+
+  // The Geomean's noise is a standard error over the benchmarks it
+  // aggregates, which the note under the table has to say.
+  await expect(page.locator("#changes")).toContainText("2 benchmarks");
+  await expect(page.locator("#changes")).toContainText("standard error");
+  expect(errors).toEqual([]);
+});
+
 test("run page lists the commits new since the previous run", async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto("run.html?run=00003");

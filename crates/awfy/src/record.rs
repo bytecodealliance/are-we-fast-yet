@@ -487,7 +487,7 @@ mod tests {
         );
         assert_eq!(metadata.environment.cpu, "Fake CPU");
         assert_eq!(metadata.finished.to_string(), "2026-10-10T04:00:00Z");
-        assert_eq!(metadata.config.iterations, 3);
+        assert_eq!(metadata.config.iterations, 6);
         assert_eq!(
             metadata.failures,
             [(

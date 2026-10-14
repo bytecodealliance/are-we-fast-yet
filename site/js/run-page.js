@@ -5,7 +5,7 @@ import { Data } from "./data.js";
 import { el, showError, start } from "./page.js";
 import { slug } from "./slug.js";
 import { parseState } from "./state.js";
-import { WASMTIME_REPO, commitLog, formatChange, formatCount, shortSha } from "./transform.js";
+import { WASMTIME_REPO, commitLog, formatChange, formatCount, formatNoise, shortSha } from "./transform.js";
 
 start(async () => {
   const data = new Data();
@@ -103,6 +103,16 @@ function renderCommits({ commits, omitted, compare }) {
   box.replaceChildren(...children);
 }
 
+/** How many benchmarks the Geomean rows aggregated, e.g. `29 benchmarks`. */
+function aggregated(changes) {
+  const counts = new Set(changes.map((c) => c.benchmarks).filter((n) => n));
+  if (counts.size === 0) return "the suite's benchmarks";
+  // One count per phase, normally the same; say so when they differ rather
+  // than picking one, since that means the phases are not comparable.
+  const n = [...counts].sort((a, b) => a - b);
+  return n.length === 1 ? `${n[0]} benchmarks` : `${n.join("/")} benchmarks, varying by phase`;
+}
+
 function renderTable(changes) {
   const box = document.getElementById("changes");
   let key = "change";
@@ -110,9 +120,10 @@ function renderTable(changes) {
   const columns = [
     ["benchmark", "Benchmark", false],
     ["phase", "Phase", false],
-    ["mean", "Virtual cycles", true],
+    ["median", "Virtual cycles", true],
     ["previous", "Previous", true],
     ["change", "Change", true],
+    ["noise", "Noise", true],
   ];
 
   const draw = () => {
@@ -143,12 +154,21 @@ function renderTable(changes) {
         {},
         el("td", {}, el("a", { href: `benchmark.html?b=${encodeURIComponent(slug(c.benchmark))}` }, c.benchmark)),
         el("td", {}, c.phase),
-        el("td", { class: "num" }, formatCount(c.mean)),
+        el("td", { class: "num" }, formatCount(c.median)),
         el("td", { class: "num" }, formatCount(c.previous)),
         el("td", { class: `num ${c.change > 0 ? "worse" : c.change < 0 ? "better" : ""}` }, formatChange(c.change)),
+        el("td", { class: "num" }, formatNoise(c.noise)),
       ),
     );
-    box.replaceChildren(el("div", { class: "table-wrap" }, el("table", {}, el("thead", {}, header), el("tbody", {}, body))));
+    box.replaceChildren(
+      el("div", { class: "table-wrap" }, el("table", {}, el("thead", {}, header), el("tbody", {}, body))),
+      el(
+        "p",
+        { class: "muted" },
+        "Virtual cycles is the median of this run's samples, and noise how far they spread around it. ",
+        `The Geomean aggregates ${aggregated(changes)} and has no samples of its own, so its noise is the standard error of those benchmarks' means \u2014 a different quantity, which shrinks as samples are added.`,
+      ),
+    );
   };
   draw();
 }

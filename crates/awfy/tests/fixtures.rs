@@ -62,6 +62,6 @@ fn fixtures_load() {
         let measurements = data.measurements(run).unwrap();
         let benchmarks = if metadata.failures.is_empty() { 2 } else { 1 };
         // Benchmarks x phases x events x iterations.
-        assert_eq!(measurements.len(), benchmarks * 3 * 3 * 3, "run {run}");
+        assert_eq!(measurements.len(), benchmarks * 3 * 3 * 6, "run {run}");
     }
 }

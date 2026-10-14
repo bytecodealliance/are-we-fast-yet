@@ -13,12 +13,16 @@ const index = {
 
 test("joins points with the index by commit date", () => {
   // Run 4 is not in the index (e.g. excluded since), so is dropped.
-  const series = joinSeries(index, [[1, 10], [2, 20], [3, 30], [4, 40]]);
+  const series = joinSeries(index, [[1, 10, 0.5], [2, 20, 0.25], [3, 30, 0.125], [4, 40, 1]]);
   assert.deepEqual(series.xs, [1, 2, 3].map((d) => Date.parse(`2026-10-0${d}T00:00:00Z`) / 1000));
   assert.deepEqual(series.ys, [10, 20, 30]);
+  assert.deepEqual(series.noises, [0.5, 0.25, 0.125]);
   assert.deepEqual(series.runs, [1, 2, 3]);
   assert.deepEqual(series.shas, ["a", "b", "c"].map((c) => c.repeat(40)));
   assert.deepEqual(joinSeries(index, undefined).xs, []);
+
+  // A point with no noise recorded still plots; it just gets no bar.
+  assert.deepEqual(joinSeries(index, [[1, 10]]).noises, [null]);
 });
 
 test("same-day runs stay in run order", () => {

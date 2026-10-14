@@ -8,11 +8,14 @@
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "instructions-retired",
-        "new-mean": 1012000.0,
-        "old-mean": 1000000.0,
+        "new": 1012000.0,
+        "new-noise": 0.0197628,
+        "old": 1000000.0,
+        "old-noise": 0.02,
         "phase": "execution",
         "ratio": 1.012,
-        "ratio-ci": 0.000375923,
+        "ratio-high": 1.01216,
+        "ratio-low": 1.01184,
         "relative-change": 0.012
       }
     ],
@@ -20,11 +23,14 @@
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",
-        "new-mean": 2030000.0,
-        "old-mean": 2000000.0,
+        "new": 2030000.0,
+        "new-noise": 0.0197044,
+        "old": 2000000.0,
+        "old-noise": 0.02,
         "phase": "execution",
         "ratio": 1.015,
-        "ratio-ci": 0.000375923,
+        "ratio-high": 1.01516,
+        "ratio-low": 1.01484,
         "relative-change": 0.015
       }
     ],
@@ -35,21 +41,27 @@
       {
         "benchmark": "Geomean",
         "event": "virtual-cycles",
-        "new-mean": 1710130.0,
-        "old-mean": 1732050.0,
+        "new": 1710130.0,
+        "new-noise": null,
+        "old": 1732050.0,
+        "old-noise": null,
         "phase": "compilation",
         "ratio": 1.01282,
-        "ratio-ci": 0.000371709,
+        "ratio-high": 1.0129,
+        "ratio-low": 1.01273,
         "relative-change": -0.0126551
       },
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",
-        "new-mean": 970000.0,
-        "old-mean": 1000000.0,
+        "new": 970000.0,
+        "new-noise": 0.0185567,
+        "old": 1000000.0,
+        "old-noise": 0.02,
         "phase": "compilation",
         "ratio": 1.03093,
-        "ratio-ci": 0.00037147,
+        "ratio-high": 1.03109,
+        "ratio-low": 1.03077,
         "relative-change": -0.03
       }
     ]

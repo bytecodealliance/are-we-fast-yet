@@ -93,7 +93,7 @@ mod tests {
             get(&root, "regressions.issue-repo").unwrap(),
             "bytecodealliance/are-we-fast-yet"
         );
-        assert_eq!(get(&root, "benchmark.iterations").unwrap(), "3");
+        assert_eq!(get(&root, "benchmark.iterations").unwrap(), "6");
         assert!(get(&root, "regressions").is_err());
         assert!(get(&root, "regressions.nope").is_err());
     }

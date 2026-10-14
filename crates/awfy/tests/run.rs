@@ -24,9 +24,15 @@ fn run_writes_one_csv_per_unit() {
             "a__benchmark.wasm.000.csv",
             "a__benchmark.wasm.001.csv",
             "a__benchmark.wasm.002.csv",
+            "a__benchmark.wasm.003.csv",
+            "a__benchmark.wasm.004.csv",
+            "a__benchmark.wasm.005.csv",
             "c__c.wasm.000.csv",
             "c__c.wasm.001.csv",
             "c__c.wasm.002.csv",
+            "c__c.wasm.003.csv",
+            "c__c.wasm.004.csv",
+            "c__c.wasm.005.csv",
             "failures.toml",
         ]
     );
@@ -56,7 +62,7 @@ fn run_fails_when_everything_fails() {
     let root = root();
     let out = run(root.path(), ".wasm");
     assert!(!out.status.success());
-    assert!(String::from_utf8_lossy(&out.stderr).contains("all 9 units failed"));
+    assert!(String::from_utf8_lossy(&out.stderr).contains("all 18 units failed"));
 }
 
 #[test]

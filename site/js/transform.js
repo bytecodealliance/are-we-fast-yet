@@ -67,6 +67,32 @@ export function formatTicks(values, format = formatCount) {
   return values.map((v) => format(v, 12));
 }
 
+/**
+ * The error bar around `y` for a point whose noise is `noisePercent`, as
+ * `[low, high]`, or null when there is no noise to draw.
+ *
+ * The bar's full width is the noise, so it spans `y * noisePercent / 100`,
+ * centered on `y`. The noise is relative, so this needs no adjustment when the
+ * plot is showing values relative to a base point: dividing every `y` by one
+ * base scales the bar with it.
+ */
+export function noiseBand(y, noisePercent) {
+  if (y === null || y === undefined) return null;
+  if (!noisePercent || !Number.isFinite(noisePercent)) return null;
+  const half = Math.abs(y) * (noisePercent / 100) / 2;
+  return [y - half, y + half];
+}
+
+/** `0.0186` as `0.019%`, with `decimals` decimal places. */
+export function formatNoise(noisePercent) {
+  if (noisePercent === null || noisePercent === undefined) return "";
+  if (!Number.isFinite(noisePercent)) return "";
+  // Three decimals, not two: our benchmarks are quiet enough that two would
+  // round most of them to "0.00%", which is the distinction this figure
+  // exists to draw.
+  return `${noisePercent.toFixed(3)}%`;
+}
+
 /** `0.0123` as `+1.23%`, with `decimals` decimal places. */
 export function formatChange(r, decimals = 2) {
   if (r === null || r === undefined) return "";

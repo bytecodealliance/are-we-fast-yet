@@ -2,8 +2,16 @@
 
 A small repo root: `config.toml` and `benchmark-data/`. Two benchmarks, three
 phases, three events (`virtual-cycles`, `instructions-retired`,
-`l1-dcache-read-misses`), three iterations. Counts in each group are
-`base - 10*k`, `base`, `base + 10*k`, where `k` is `base / 100000` (at least 1).
+`l1-dcache-read-misses`), six iterations. Counts in each group are `base +
+d*k` for `d` in `-10, -6, -2, 2, 6, 10`, where `k` is `base / 100000` (at
+least 1), so the median is exactly `base`.
+
+Six iterations rather than three because the comparison is a Mann-Whitney U
+test over an exactly enumerated null distribution: with `n` samples of each run
+there are only `C(2n, n)` ways for them to interleave, so no comparison can
+report a p-value below `2 / C(2n, n)`. That floor is 0.1 at three samples,
+which the 0.01 significance level in `config.toml` can never clear, and 0.0022
+at six, which it can.
 
 | Run | What |
 |-----|------|

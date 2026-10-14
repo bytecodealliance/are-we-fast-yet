@@ -8,7 +8,9 @@
 * A run with some failed benchmarks is still committed. Its failures are listed
   in metadata.
 * The CSV is Sightglass's raw output with `engine` and `wasm` normalized so
-  it is stable and reproducible across runs.
+  it is stable and reproducible across runs. It holds only measured samples:
+  medians, geomeans, and noise are all derived from them at deploy time, so a
+  change to how they are computed needs no rewrite of recorded data.
 * `[wasmtime]` records the Wasmtime commits new since the previous run, for
   the run page's commit list. They are captured at record time, since the
   site is built by a job with no Wasmtime clone to read them from. A long log

@@ -6,20 +6,20 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 * This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml))
 * Threshold: significant at the 0.01 level and at least 1% more
 
-| benchmark | phase | effect size |
-|-----------|-------|-------------|
-| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.050x +/- 0.004 more virtual cycles |
-| [`spidermonkey/spidermonkey-json.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=spidermonkey-spidermonkey-json&metric=virtual-cycles) | compilation | 1.100x +/- 0.004 more virtual cycles |
-| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | 1.015x +/- 0.004 more virtual cycles |
-| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | compilation | 1.020x +/- 0.004 more virtual cycles |
+| benchmark | phase | effect size | noise |
+|-----------|-------|-------------|-------|
+| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.050x, 1.046x to 1.054x more virtual cycles | n/a |
+| [`spidermonkey/spidermonkey-json.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=spidermonkey-spidermonkey-json&metric=virtual-cycles) | compilation | 1.100x, 1.096x to 1.104x more virtual cycles | 0.012% -> 0.015% |
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | 1.015x, 1.011x to 1.019x more virtual cycles | 0.012% -> 0.015% |
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | compilation | 1.020x, 1.016x to 1.024x more virtual cycles | 0.012% -> 0.015% |
 
 <details>
 <summary>Other callgrind counters that changed for these benchmarks</summary>
 
-| benchmark | phase | effect size |
-|-----------|-------|-------------|
-| `bz2/benchmark.wasm` | execution | 2.000x +/- 0.004 more l1 dcache read misses |
-| `bz2/benchmark.wasm` | execution | 1.111x +/- 0.004 fewer conditional branches |
+| benchmark | phase | effect size | noise |
+|-----------|-------|-------------|-------|
+| `bz2/benchmark.wasm` | execution | 2.000x, 1.996x to 2.004x more l1 dcache read misses | 0.012% -> 0.015% |
+| `bz2/benchmark.wasm` | execution | 1.111x, 1.107x to 1.115x fewer conditional branches | 0.012% -> 0.015% |
 
 </details>
 
