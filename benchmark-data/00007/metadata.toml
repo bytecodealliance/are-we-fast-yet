@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-15T00:54:39Z
+finished = 2026-10-15T03:32:18Z
+
+[wasmtime]
+commit = "b140c545f5e5523fed8ee42a6166b1fa04d39b31"
+commit-date = 2026-10-14T22:54:19Z
+
+[[wasmtime.commits]]
+commit = "b140c545f5e5523fed8ee42a6166b1fa04d39b31"
+subject = "Add `interrupt_poll` Cranelift instruction. (#14579)"
+
+[[wasmtime.commits]]
+commit = "5af334209f6a230c167f836bcbfdef5fa8cbad01"
+subject = "Fix a `bail_bug!` running wasm from `poll_{produce,consume}` (#14750)"
+
+[[wasmtime.commits]]
+commit = "5e19ac56051e25bbcb4f642fb73a3e7d584e4614"
+subject = "Cranelift: place post-instruction debug tags before islands. (#14756)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "d7fb181a4dac0626bfd370f79c00864fc29c2a0a"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38662613516"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmmprz5 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
