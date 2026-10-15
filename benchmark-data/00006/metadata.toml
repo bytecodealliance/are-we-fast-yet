@@ -1,0 +1,83 @@
+schema = 1
+started = 2026-10-14T21:24:32Z
+finished = 2026-10-15T00:00:03Z
+
+[wasmtime]
+commit = "afde5b46892c65988eeba635b55ebdd57045906a"
+commit-date = 2026-10-14T20:46:52Z
+
+[[wasmtime.commits]]
+commit = "afde5b46892c65988eeba635b55ebdd57045906a"
+subject = "return error instead of panicking on host stream type mismatch (#14733)"
+
+[[wasmtime.commits]]
+commit = "b68f0c695ca35a0ceae8b9d35c0b5ba11244b14f"
+subject = "Preserve low-priority tasks across an `await` (#14749)"
+
+[[wasmtime.commits]]
+commit = "c8a437d023fe6c756cbcccad2902235e89abad3e"
+subject = " concurrent: Clear may_leave in missing places  (#14739)"
+
+[[wasmtime.commits]]
+commit = "785ff76246c9012ff8b0975df12344077977bf36"
+subject = "Add some more FIXMEs for memory64 & async (#14751)"
+
+[[wasmtime.commits]]
+commit = "8edbebb8966e4986b3b00f402643f177f8507617"
+subject = "avoid panic when `call_async` future dropped while queued (#14741)"
+
+[[wasmtime.commits]]
+commit = "3ec2054017a03863660f7733d6c30c8bd79e2001"
+subject = "Restore a trap in same-instance adapter calls (#14730)"
+
+[[wasmtime.commits]]
+commit = "73de1953776f371f1f153fb19affea08edf1d5bd"
+subject = "change `assert!` to `ensure!` to avoid panic when suspending (#14736)"
+
+[[wasmtime.commits]]
+commit = "79a6098bc744a7ae0a71cb3cd18dd71ab87cf4e2"
+subject = "disallow [Typed]Func::call from async context  (#14734)"
+
+[[wasmtime.commits]]
+commit = "92e9ad2500c116785def60964f50b402fb85d7bc"
+subject = "Update wasm-tools/wit-bindgen crates (#14748)"
+
+[[wasmtime.commits]]
+commit = "3eb21e065b5ac162d1c039fd222c11978a3a46c9"
+subject = "Fix a flaky wasip1 poll test (#14745)"
+
+[[wasmtime.commits]]
+commit = "84363418f4a5973f1d4b7af11585a4078ea63021"
+subject = "simplify handling of dropped `call_async` futures (#14742)"
+
+[[wasmtime.commits]]
+commit = "a55c4a5bff2b6faf68f6acc4bf73f8f79ff53dba"
+subject = " gc: Avoid recursive drain drop  (#14735)"
+
+[[wasmtime.commits]]
+commit = "cac4a18a514925a110b2085795929e154980be9d"
+subject = "Fix an oss-fuzz panic (#14726)"
+
+[[wasmtime.commits]]
+commit = "28c6adad203ec6a0c46375fbfedc751309b1bb12"
+subject = "Enforce limits on component model handles within a store (#14732)"
+
+[sightglass]
+commit = "181477a9d02909abf283deca6a00f4b8ae97ebd8"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "12f3e26f16835fa80534d14a66b1c2a9fcbca592"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38639948905"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
