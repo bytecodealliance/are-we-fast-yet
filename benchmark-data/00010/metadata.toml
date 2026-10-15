@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-15T21:26:19Z
+finished = 2026-10-15T23:59:35Z
+
+[wasmtime]
+commit = "70d35066e714ae7e5a8e3ced304d1d07e90b45e9"
+commit-date = 2026-10-15T19:57:19Z
+
+[[wasmtime.commits]]
+commit = "70d35066e714ae7e5a8e3ced304d1d07e90b45e9"
+subject = "Fix a bounds check for imported memories (#14754)"
+
+[[wasmtime.commits]]
+commit = "db82603b5165f7528bc075c59f6f73e2782f7c5b"
+subject = "Fix `decommit_pages` for custom no-std platforms (#14774)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "c891dd7d49deade612270a8752e92893d1c3e8f0"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38809766619"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
