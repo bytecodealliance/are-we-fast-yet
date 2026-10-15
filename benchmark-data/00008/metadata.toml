@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-15T15:29:03Z
+finished = 2026-10-15T18:00:35Z
+
+[wasmtime]
+commit = "cd16cfe4b91f6f43c736895292a631581c067b84"
+commit-date = 2026-10-15T14:23:50Z
+
+[[wasmtime.commits]]
+commit = "cd16cfe4b91f6f43c736895292a631581c067b84"
+subject = "Handle asyncness of core functions more often (#14758)"
+
+[[wasmtime.commits]]
+commit = "04226ad1e8436b2d8591d9f650bc7a60e45f9bae"
+subject = "Handle OOM in component `instantiate_pre` more (#14759)"
+
+[[wasmtime.commits]]
+commit = "775d12d0152b7c00750043f6acd0dd16e3397faa"
+subject = "[main] update rustls to 0.23.46 (#14764)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "172be2be919504cd0e700e810a6232286429551c"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38760597953"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "INTEL(R) XEON(R) PLATINUM 8573C"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
