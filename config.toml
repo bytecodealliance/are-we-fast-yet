@@ -16,13 +16,26 @@ engine-flags = """-Cparallel-compilation=n \
 [regressions]
 # Significance level for the confidence interval: 0.01 is 99% confidence.
 significance-level = 0.01
-# Minimum relative change in mean virtual cycles to report, e.g. 0.01 is 1%.
-min-relative-change = 0.002
 # Repository regression issues are filed on.
 #
 # This repo during rollout, will change to `bytecodealliance/wasmtime` after
 # things are working smoothly.
 issue-repo = "bytecodealliance/are-we-fast-yet"
+
+# Minimum relative change in virtual cycles to report, e.g. 0.01 is 1%. Each
+# phase is tuned separately, and within a phase the suite geomean is held to a
+# tighter threshold than any one benchmark. See docs/regressions.md.
+[regressions.min-relative-change.compilation]
+geomean = 0.005
+individual = 0.01
+
+[regressions.min-relative-change.instantiation]
+geomean = 0.025
+individual = 0.05
+
+[regressions.min-relative-change.execution]
+geomean = 0.005
+individual = 0.01
 
 [site]
 # Where `pages.yml` deploys the site. Regression issues link here.

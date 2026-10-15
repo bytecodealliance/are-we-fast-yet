@@ -3,8 +3,34 @@
     "baseline": 2,
     "baseline-commit": "2222222222222222222222222222222222222222",
     "commit": "3333333333333333333333333333333333333333",
-    "min-relative-change": 0.01,
+    "min-relative-change": {
+      "compilation": {
+        "geomean": 0.02,
+        "individual": 0.01
+      },
+      "execution": {
+        "geomean": 0.002,
+        "individual": 0.01
+      },
+      "instantiation": {
+        "geomean": 0.02,
+        "individual": 0.05
+      }
+    },
     "other-counters": [
+      {
+        "benchmark": "Geomean",
+        "event": "instructions-retired",
+        "new": 502991.0,
+        "new-noise": null,
+        "old": 500000.0,
+        "old-noise": null,
+        "phase": "execution",
+        "ratio": 1.00598,
+        "ratio-high": 1.00606,
+        "ratio-low": 1.0059,
+        "relative-change": 0.00598211
+      },
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "instructions-retired",
@@ -20,6 +46,19 @@
       }
     ],
     "regressions": [
+      {
+        "benchmark": "Geomean",
+        "event": "virtual-cycles",
+        "new": 1007470.0,
+        "new-noise": null,
+        "old": 1000000.0,
+        "old-noise": null,
+        "phase": "execution",
+        "ratio": 1.00747,
+        "ratio-high": 1.00756,
+        "ratio-low": 1.00738,
+        "relative-change": 0.00747208
+      },
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",
@@ -38,19 +77,6 @@
     "significance-level": 0.01,
     "skipped-benchmarks": [],
     "speedups": [
-      {
-        "benchmark": "Geomean",
-        "event": "virtual-cycles",
-        "new": 1710130.0,
-        "new-noise": null,
-        "old": 1732050.0,
-        "old-noise": null,
-        "phase": "compilation",
-        "ratio": 1.01282,
-        "ratio-high": 1.0129,
-        "ratio-low": 1.01273,
-        "relative-change": -0.0126551
-      },
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",

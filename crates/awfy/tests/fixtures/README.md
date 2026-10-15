@@ -13,11 +13,14 @@ report a p-value below `2 / C(2n, n)`. That floor is 0.1 at three samples,
 which the 0.01 significance level in `config.toml` can never clear, and 0.0022
 at six, which it can.
 
+The fixture's `min-relative-change` values differ per phase and scope, so the
+tests exercise picking the right one rather than a single threshold everywhere.
+
 | Run | What |
 |-----|------|
 | 00001 | Baseline. No previous run, so no commit log. |
 | 00002 | Identical to 00001: a steady pair. One commit logged, one omitted. |
-| 00003 | Against 00002: `bz2` execution +1.5% (above the 1% threshold, with `instructions-retired` up too), `pulldown-cmark` compilation +0.5% (below), `bz2` compilation -3% (a speedup). |
+| 00003 | Against 00002: `bz2` execution +1.5% (above execution's 1% individual threshold, with `instructions-retired` up too), `pulldown-cmark` compilation +0.5% (below compilation's), `bz2` compilation -3% (a speedup). The execution Geomean is +0.75%, above that phase's 0.2% geomean threshold; the compilation Geomean is -1.3%, below compilation's 2%. |
 | 00004 | Every count doubled. Excluded in `excluded.toml`. |
 | 00005 | Same counts as 00003, but `valgrind-3.24.0`: a fingerprint change. |
 | 00006 | Same as 00005, but `pulldown-cmark` failed: no rows, and a `[failures]` entry. |

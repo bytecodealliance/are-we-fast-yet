@@ -1,7 +1,8 @@
 //! `config.toml`: run configuration. See `docs/architecture.md`.
 
 use anyhow::{Context, Result};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use sightglass_data::Phase;
 use std::path::Path;
 
 /// The struct for the top-level `config.toml` file.
@@ -35,9 +36,56 @@ pub struct Regressions {
     /// The significance level to test at.
     pub significance_level: f64,
     /// The minimum relative change to be considered significant.
-    pub min_relative_change: f64,
+    pub min_relative_change: MinRelativeChange,
     /// `owner/name` of the repository regression issues are filed on.
     issue_repo: String,
+}
+
+/// The minimum relative change to be considered significant, per phase.
+///
+/// Instantiation's counts are small enough that fixed overheads dominate them,
+/// so the same relative change means much less there than in the other two
+/// phases.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct MinRelativeChange {
+    /// Thresholds for the compilation phase.
+    pub compilation: Thresholds,
+    /// Thresholds for the instantiation phase.
+    pub instantiation: Thresholds,
+    /// Thresholds for the execution phase.
+    pub execution: Thresholds,
+}
+
+/// One phase's thresholds.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Thresholds {
+    /// For the suite geomean, which averages each benchmark's noise away and
+    /// so justifies a tighter threshold than any one benchmark does.
+    pub geomean: f64,
+    /// For a single benchmark.
+    pub individual: f64,
+}
+
+impl MinRelativeChange {
+    /// Every phase's thresholds, in `Phase` order.
+    pub fn phases(&self) -> [(Phase, &Thresholds); 3] {
+        [
+            (Phase::Compilation, &self.compilation),
+            (Phase::Instantiation, &self.instantiation),
+            (Phase::Execution, &self.execution),
+        ]
+    }
+
+    /// One phase's thresholds.
+    pub fn for_phase(&self, phase: Phase) -> &Thresholds {
+        match phase {
+            Phase::Compilation => &self.compilation,
+            Phase::Instantiation => &self.instantiation,
+            Phase::Execution => &self.execution,
+        }
+    }
 }
 
 /// Config options for site generation.
@@ -94,7 +142,16 @@ mod tests {
             "bytecodealliance/are-we-fast-yet"
         );
         assert_eq!(get(&root, "benchmark.iterations").unwrap(), "6");
+        assert_eq!(
+            get(
+                &root,
+                "regressions.min-relative-change.execution.individual"
+            )
+            .unwrap(),
+            "0.01"
+        );
         assert!(get(&root, "regressions").is_err());
+        assert!(get(&root, "regressions.min-relative-change").is_err());
         assert!(get(&root, "regressions.nope").is_err());
     }
 
@@ -121,8 +178,41 @@ mod tests {
             typo = 1
             [regressions]
             significance-level = 0.01
-            min-relative-change = 0.01
             issue-repo = "a/b"
+            [regressions.min-relative-change.compilation]
+            geomean = 0.002
+            individual = 0.01
+            [regressions.min-relative-change.instantiation]
+            geomean = 0.02
+            individual = 0.05
+            [regressions.min-relative-change.execution]
+            geomean = 0.002
+            individual = 0.01
+            [site]
+            base-url = "https://example.com/"
+            repo = "a/b"
+        "#;
+        assert!(toml::from_str::<Config>(text).is_err());
+    }
+
+    /// Every phase must be configured: a missing one is a load error rather
+    /// than a silent zero.
+    #[test]
+    fn rejects_missing_phase() {
+        let text = r#"
+            [benchmark]
+            suite = "s"
+            iterations = 1
+            engine-flags = ""
+            [regressions]
+            significance-level = 0.01
+            issue-repo = "a/b"
+            [regressions.min-relative-change.compilation]
+            geomean = 0.002
+            individual = 0.01
+            [regressions.min-relative-change.execution]
+            geomean = 0.002
+            individual = 0.01
             [site]
             base-url = "https://example.com/"
             repo = "a/b"

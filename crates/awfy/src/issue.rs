@@ -71,10 +71,10 @@ fn render(
     writeln!(b, "* This run: {}", run_link(report.run))?;
     writeln!(
         b,
-        "* Threshold: significant at the {} level and at least {}% more\n",
-        report.significance_level,
-        report.min_relative_change * 100.0
+        "* Threshold: significant at the {} level, and at least this much more:\n",
+        report.significance_level
     )?;
+    crate::regressions::threshold_table(&mut b, &report.min_relative_change);
 
     writeln!(b, "| benchmark | phase | effect size | noise |")?;
     writeln!(b, "|-----------|-------|-------------|-------|")?;

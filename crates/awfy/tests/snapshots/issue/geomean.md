@@ -4,7 +4,13 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 
 * Baseline: [run 00002](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00002) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00002/metadata.toml))
 * This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml))
-* Threshold: significant at the 0.01 level and at least 1% more
+* Threshold: significant at the 0.01 level, and at least this much more:
+
+| phase | geomean | individual |
+|-------|---------|------------|
+| compilation | 2% | 1% |
+| instantiation | 2% | 5% |
+| execution | 0.2% | 1% |
 
 | benchmark | phase | effect size | noise |
 |-----------|-------|-------------|-------|

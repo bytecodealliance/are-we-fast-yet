@@ -1,7 +1,7 @@
 //! `awfy regressions`: compare a run with its baseline. See
 //! `docs/regressions.md`.
 
-use crate::config::Config;
+use crate::config::{Config, MinRelativeChange};
 use crate::fingerprint::Fingerprint;
 use crate::metadata::Metadata;
 use crate::runs::{DataDir, RunNumber};
@@ -94,8 +94,8 @@ pub struct Report {
     pub commit: String,
     /// The significance level we used to test for regressions.
     pub significance_level: f64,
-    /// The minimum relative change required for reporting a regression.q
-    pub min_relative_change: f64,
+    /// The minimum relative changes required for reporting a regression.
+    pub min_relative_change: MinRelativeChange,
     /// Virtual-cycles regressions, Geomean first, then largest first.
     pub regressions: Vec<Change>,
     /// Virtual-cycles speedups, in the same order.
@@ -304,7 +304,7 @@ fn compare_measurements(
     (baseline, old_meta, old): (RunNumber, &Metadata, Vec<Measurement<'static>>),
     (run, new_meta, new): (RunNumber, &Metadata, Vec<Measurement<'static>>),
 ) -> Result<Report> {
-    let min = config.regressions.min_relative_change;
+    let min = &config.regressions.min_relative_change;
     let significance = config.regressions.significance_level;
 
     // Align: compare only benchmarks both runs measured.
@@ -349,7 +349,13 @@ fn compare_measurements(
     let mut speedups = Vec::new();
     let mut others = Vec::new();
     let mut classify = |event: &str, change: Change| {
-        if change.relative_change.abs() < min {
+        let thresholds = min.for_phase(change.phase);
+        let threshold = if change.benchmark == GEOMEAN {
+            thresholds.geomean
+        } else {
+            thresholds.individual
+        };
+        if change.relative_change.abs() < threshold {
             return;
         }
         match (event == VIRTUAL_CYCLES, change.is_increase()) {
@@ -388,7 +394,7 @@ fn compare_measurements(
         baseline_commit: old_meta.wasmtime.commit.clone(),
         commit: new_meta.wasmtime.commit.clone(),
         significance_level: significance,
-        min_relative_change: min,
+        min_relative_change: min.clone(),
         regressions,
         speedups,
         other_counters,
@@ -417,13 +423,14 @@ fn summary(outcome: &Outcome) -> String {
             writeln!(
                 s,
                 "Wasmtime `{}`..`{}`. A change counts when a Mann-Whitney U test \
-                 finds it significant at the {} level and it is at least {}.\n",
+                 finds it significant at the {} level and it clears its phase's \
+                 minimum relative change:\n",
                 short(&r.baseline_commit),
                 short(&r.commit),
                 r.significance_level,
-                percent(r.min_relative_change),
             )
             .unwrap();
+            threshold_table(&mut s, &r.min_relative_change);
             change_table(&mut s, "Regressions", &r.regressions);
             change_table(&mut s, "Speedups", &r.speedups);
             if !r.skipped_benchmarks.is_empty() {
@@ -436,6 +443,22 @@ fn summary(outcome: &Outcome) -> String {
         }
     }
     s
+}
+
+/// The thresholds a change had to clear, as a Markdown table.
+pub fn threshold_table(s: &mut String, min: &MinRelativeChange) {
+    writeln!(s, "| phase | geomean | individual |").unwrap();
+    writeln!(s, "|-------|---------|------------|").unwrap();
+    for (phase, t) in min.phases() {
+        writeln!(
+            s,
+            "| {phase} | {} | {} |",
+            percent(t.geomean),
+            percent(t.individual)
+        )
+        .unwrap();
+    }
+    writeln!(s).unwrap();
 }
 
 fn change_table(s: &mut String, title: &str, changes: &[Change]) {
@@ -622,26 +645,33 @@ mod tests {
                 .map(|c| format!("{} {} {}", c.benchmark, c.phase, c.event))
                 .collect()
         };
-        // bz2 execution is +1.5%, above the 1% threshold. pulldown-cmark
-        // compilation is +0.5%: significant, but below it.
+        // bz2 execution is +1.5%, above execution's 1% individual threshold.
+        // pulldown-cmark compilation is +0.5%: significant, but below
+        // compilation's. The execution Geomean comes first, and clears that
+        // phase's much tighter 0.2% geomean threshold.
         assert_eq!(
             names(&r.regressions),
-            ["bz2/benchmark.wasm execution virtual-cycles"]
-        );
-        // The Geomean comes first. bz2 compilation is -3%, the Geomean about
-        // -1.3%.
-        assert_eq!(
-            names(&r.speedups),
             [
-                "Geomean compilation virtual-cycles",
-                "bz2/benchmark.wasm compilation virtual-cycles"
+                "Geomean execution virtual-cycles",
+                "bz2/benchmark.wasm execution virtual-cycles"
             ]
         );
+        // bz2 compilation is -3%, above compilation's 1% individual threshold.
+        // The compilation Geomean is about -1.3%, below that phase's 2%
+        // geomean threshold, so only the benchmark is reported.
+        assert_eq!(
+            names(&r.speedups),
+            ["bz2/benchmark.wasm compilation virtual-cycles"]
+        );
+        // Both execution regressions carry their other counters along.
         assert_eq!(
             names(&r.other_counters),
-            ["bz2/benchmark.wasm execution instructions-retired"]
+            [
+                "Geomean execution instructions-retired",
+                "bz2/benchmark.wasm execution instructions-retired"
+            ]
         );
-        let c = &r.regressions[0];
+        let c = &r.regressions[1];
         assert!((c.relative_change - 0.015).abs() < 1e-9);
         assert!((c.ratio - 1.015).abs() < 1e-9);
         assert!(r.skipped_benchmarks.is_empty());
@@ -712,7 +742,7 @@ mod tests {
             ("b.wasm", Phase::Execution, &same, &[1020; 6]),
         ]);
         let names: Vec<&str> = r.regressions.iter().map(|c| c.benchmark.as_str()).collect();
-        // `a.wasm` moved 0.5%, under the fixture's 1% threshold.
+        // `a.wasm` moved 0.5%, under execution's 1% individual threshold.
         //
         // The Geomean is absent for a different reason: it is compared by a
         // delta-method interval built from each benchmark's variance, and
@@ -733,6 +763,21 @@ mod tests {
             &[1100, 2100, 3100, 4100, 5100, 6100],
         )]);
         assert!(r.regressions.is_empty(), "{:?}", r.regressions);
+    }
+
+    /// The same change in two phases, between the fixture's 1% compilation
+    /// and 5% instantiation individual thresholds.
+    #[test]
+    fn per_phase_thresholds() {
+        let old = [1000, 1001, 999, 1002, 998, 1000];
+        let new = [1030, 1031, 1029, 1032, 1028, 1030];
+        // One benchmark, so there is no Geomean to report alongside it.
+        let r = compare_counts(&[
+            ("a.wasm", Phase::Compilation, &old, &new),
+            ("a.wasm", Phase::Instantiation, &old, &new),
+        ]);
+        let phases: Vec<Phase> = r.regressions.iter().map(|c| c.phase).collect();
+        assert_eq!(phases, [Phase::Compilation], "{:?}", r.regressions);
     }
 
     #[test]

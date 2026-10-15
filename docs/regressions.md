@@ -8,6 +8,16 @@ A (benchmark, phase) regresses when its virtual cycles change is both
 statistically significant and at least `min-relative-change`. Speedups appear in
 the job summary but never file issues.
 
+## Thresholds
+
+`min-relative-change` is six numbers, one per (phase, scope):
+
+```toml
+[regressions.min-relative-change.compilation]
+geomean = 0.002
+individual = 0.01
+```
+
 ## Statistics
 
 Each (benchmark, phase, event) is compared with a Mann-Whitney U test over an
@@ -16,9 +26,9 @@ shape; benchmark timings are right-skewed, since code cannot run faster than
 its critical path but can always be interfered with. The effect size is the
 median of the pairwise ratios between the two runs' samples, with a confidence
 interval from inverting the same test, so the interval excludes 1 exactly when
-the test finds a difference. `min-relative-change` filters on that ratio rather
-than on a difference of medians, so the threshold and the test always agree
-about which way a change went.
+the test finds a difference. The threshold filters on that ratio rather than on
+a difference of medians, so the threshold and the test always agree about which
+way a change went.
 
 The suite geomean is compared separately, as a ratio of the two runs' geomeans
 in log space. It is not a synthetic benchmark: aggregating per-sample geomeans
@@ -44,6 +54,6 @@ reported once; later runs compare against the regressed baseline.
 ## Rollout
 
 1. Dry runs: inspect the would-be issue artifact.
-2. Observation: file issues on this repo for a few weeks, then set
+2. Observation: file issues on this repo for a few weeks, then set each
    `min-relative-change` from the observed noise.
 3. Live: set `issue-repo` to `bytecodealliance/wasmtime`.

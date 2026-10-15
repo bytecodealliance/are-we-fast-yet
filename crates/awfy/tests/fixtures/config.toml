@@ -5,8 +5,19 @@ engine-flags = "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx2"
 
 [regressions]
 significance-level = 0.01
-min-relative-change = 0.01
 issue-repo = "bytecodealliance/are-we-fast-yet"
+
+[regressions.min-relative-change.compilation]
+geomean = 0.02
+individual = 0.01
+
+[regressions.min-relative-change.instantiation]
+geomean = 0.02
+individual = 0.05
+
+[regressions.min-relative-change.execution]
+geomean = 0.002
+individual = 0.01
 
 [site]
 base-url = "https://bytecodealliance.github.io/are-we-fast-yet/"

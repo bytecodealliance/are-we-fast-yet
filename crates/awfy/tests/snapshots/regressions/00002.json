@@ -3,7 +3,20 @@
     "baseline": 1,
     "baseline-commit": "1111111111111111111111111111111111111111",
     "commit": "2222222222222222222222222222222222222222",
-    "min-relative-change": 0.01,
+    "min-relative-change": {
+      "compilation": {
+        "geomean": 0.02,
+        "individual": 0.01
+      },
+      "execution": {
+        "geomean": 0.002,
+        "individual": 0.01
+      },
+      "instantiation": {
+        "geomean": 0.02,
+        "individual": 0.05
+      }
+    },
     "other-counters": [],
     "regressions": [],
     "run": 2,

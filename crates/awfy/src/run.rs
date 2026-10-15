@@ -443,8 +443,16 @@ mod tests {
             engine-flags = "--target x86_64-unknown-linux-gnu -Ccranelift-has-avx"
             [regressions]
             significance-level = 0.01
-            min-relative-change = 0.01
             issue-repo = "a/b"
+            [regressions.min-relative-change.compilation]
+            geomean = 0.002
+            individual = 0.01
+            [regressions.min-relative-change.instantiation]
+            geomean = 0.02
+            individual = 0.05
+            [regressions.min-relative-change.execution]
+            geomean = 0.002
+            individual = 0.01
             [site]
             base-url = "https://example.com/"
             repo = "a/b"
@@ -779,7 +787,7 @@ mod tests {
             engine: "wasmtime".into(),
             wasm: "b.wasm".into(),
             phase: Phase::Execution,
-            event: "virtual-cycles".into(),
+            event: "instructions-retired".into(),
             count: 10_000,
         }])
         .collect();
