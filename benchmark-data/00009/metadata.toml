@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-10-15T18:30:51Z
+finished = 2026-10-15T20:46:25Z
+
+[wasmtime]
+commit = "1a7784681ee97e95d03a4c6eac770d547b5e181c"
+commit-date = 2026-10-15T18:01:11Z
+
+[[wasmtime.commits]]
+commit = "1a7784681ee97e95d03a4c6eac770d547b5e181c"
+subject = "Fix aarch64 atomic_cas.i32 miscompile without LSE (#14712)"
+
+[[wasmtime.commits]]
+commit = "be0ef6b1e3085e408e505cbacd68300eb92d7c49"
+subject = "cranelift: preserve fuel across stack-switching instructions (#14644)"
+
+[[wasmtime.commits]]
+commit = "147c37a27c8c8bea9e634bad802cc95e85134666"
+subject = "wasi-http(p3): tie outbound I/O task lifetime to the store (#14743)"
+
+[[wasmtime.commits]]
+commit = "046148a04b92ada2eadfe226c9aca78d9d847c38"
+subject = "Cranelift: x64: branch on flags for usub/sadd/ssub_overflow (#14717)"
+
+[[wasmtime.commits]]
+commit = "251e812936f95afad658f51272329e7bd9586d6c"
+subject = "cranelift: Implement 128-bit big-endian atomic load/store for s390x (#14770)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "01abaff512e336545e8d763864d6fac5eb1b4071"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38786123081"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "INTEL(R) XEON(R) PLATINUM 8573C"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
