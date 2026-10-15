@@ -1,11 +1,14 @@
 //! `awfy run`: run the suite under callgrind as many small, independent
 //! `sightglass-cli` invocations, `--jobs` at a time. Each (benchmark,
-//! iteration index) unit writes its own CSV to the output directory. See
+//! iteration index) unit writes its own CSV to the output directory, longest
+//! benchmark first as estimated from `benchmark-data/`. See
 //! `docs/architecture.md`.
 
 use crate::config::Config;
+use crate::runs::DataDir;
 use anyhow::{Context, Result, bail};
-use std::collections::{BTreeMap, VecDeque};
+use sightglass_data::{Measurement, Phase};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::OsString;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
@@ -157,19 +160,16 @@ fn run_with(
         options.sightglass_cli.clone()
     };
 
-    let mut units: Vec<Unit> = wasms
-        .iter()
-        .flat_map(|wasm| {
-            (0..config.benchmark.iterations).map(|iteration| Unit {
-                wasm: wasm.clone(),
-                iteration,
-            })
-        })
-        .collect();
-
-    // Longest first, so a long unit doesn't start last and stretch the run.
-    // Stable sort, so without estimates this keeps suite order.
-    units.sort_by_key(|u| std::cmp::Reverse(estimated_duration(u)));
+    let estimates = estimates(&DataDir::new(&root), &wasms).unwrap_or_else(|e| {
+        log::warn!("running in suite order; could not estimate benchmark costs: {e:#}");
+        Estimates::new()
+    });
+    log::info!(
+        "estimated the cost of {} of {} benchmarks from recorded runs",
+        estimates.len(),
+        wasms.len()
+    );
+    let units = schedule(&wasms, config.benchmark.iterations, &estimates);
 
     let total = units.len();
     log::info!(
@@ -308,10 +308,79 @@ fn merge_failures(mut failed: Vec<(Unit, String)>) -> BTreeMap<String, String> {
         .collect()
 }
 
-/// Hook for scheduling the longest units first. We don't know durations yet;
-/// once runs record them, estimate from the previous run.
-fn estimated_duration(_unit: &Unit) -> Option<Duration> {
-    None
+/// Every unit to run, longest benchmark first, so that a long one doesn't
+/// start last and stretch the run out behind it.
+fn schedule(wasms: &[PathBuf], iterations: u32, estimates: &Estimates) -> Vec<Unit> {
+    let mut units: Vec<Unit> = wasms
+        .iter()
+        .flat_map(|wasm| {
+            (0..iterations).map(|iteration| Unit {
+                wasm: wasm.clone(),
+                iteration,
+            })
+        })
+        .collect();
+    // An unestimated benchmark could be the longest of all, so schedule it as
+    // if it were. The sort is stable, so ties keep suite order, and with no
+    // estimates at all the schedule is suite order.
+    units.sort_by_key(|u| std::cmp::Reverse(estimates.get(&u.wasm).copied().unwrap_or(u64::MAX)));
+    units
+}
+
+/// What one iteration of a benchmark costs, keyed as `Unit::wasm` is.
+type Estimates = BTreeMap<PathBuf, u64>;
+
+/// The event a unit's cost is measured in.
+const COST_EVENT: &str = "virtual-cycles";
+
+/// How many recorded runs to look back through for an estimate. A benchmark
+/// missing from all of them is new or persistently failing, and reading every
+/// run to learn that would grow without bound.
+const LOOKBACK: usize = 3;
+
+/// Estimate each of `wasms`' cost from the most recent run that measured it.
+///
+/// Reads visible runs newest first, stopping once every benchmark has an
+/// estimate, so the usual case reads one. Benchmarks no recent run measured
+/// are absent. An unreadable run is skipped rather than failing the run this
+/// only schedules.
+fn estimates(data: &DataDir, wasms: &[PathBuf]) -> Result<Estimates> {
+    let wanted: BTreeSet<&Path> = wasms.iter().map(PathBuf::as_path).collect();
+    let mut estimates = Estimates::new();
+    for run in data.visible_runs()?.into_iter().rev().take(LOOKBACK) {
+        if estimates.len() == wanted.len() {
+            break;
+        }
+        let measurements = match data.measurements(run) {
+            Ok(measurements) => measurements,
+            Err(e) => {
+                log::warn!("not estimating from run {run}: {e:#}");
+                continue;
+            }
+        };
+        for (wasm, cost) in costs(&measurements) {
+            if wanted.contains(wasm.as_path()) {
+                // The first run to measure it is the newest one that did.
+                estimates.entry(wasm).or_insert(cost);
+            }
+        }
+    }
+    Ok(estimates)
+}
+
+/// What one iteration of each benchmark in `measurements` costs: its median
+/// `COST_EVENT` count per phase, summed, since a unit runs every phase.
+fn costs(measurements: &[Measurement<'_>]) -> Estimates {
+    let mut samples: BTreeMap<(&str, Phase), Vec<u64>> = BTreeMap::new();
+    for m in measurements.iter().filter(|m| m.event == COST_EVENT) {
+        samples.entry((&m.wasm, m.phase)).or_default().push(m.count);
+    }
+    let mut costs = Estimates::new();
+    for ((wasm, _), mut counts) in samples {
+        counts.sort_unstable();
+        *costs.entry(PathBuf::from(wasm)).or_default() += counts[counts.len() / 2];
+    }
+    costs
 }
 
 /// Parse a Sightglass `.suite` file the way `sightglass-cli` does (its parser
@@ -654,6 +723,185 @@ mod tests {
         std::fs::create_dir(&options.out).unwrap();
         std::fs::write(options.out.join("stale.csv"), "").unwrap();
         assert!(run_with(root.path(), &config(), &options, &FakeRunner::default()).is_err());
+    }
+
+    /// A `benchmark-data/` holding one directory per run, each measuring the
+    /// given `(wasm, phase, count)` rows six times.
+    fn data_dir(runs: &[&[(&str, Phase, u64)]]) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let data = DataDir::new(tmp.path());
+        for (i, rows) in runs.iter().enumerate() {
+            let dir = data.run_dir(crate::runs::RunNumber::new(i as u32 + 1).unwrap());
+            std::fs::create_dir_all(&dir).unwrap();
+            let measurements: Vec<Measurement> = rows
+                .iter()
+                .flat_map(|&(wasm, phase, count)| {
+                    // Spread the samples around `count` so the median is it.
+                    [count - 2, count - 1, count, count, count + 1, count + 2].map(move |count| {
+                        Measurement {
+                            arch: "x86_64".into(),
+                            engine: "wasmtime".into(),
+                            wasm: wasm.into(),
+                            phase,
+                            event: COST_EVENT.into(),
+                            count,
+                        }
+                    })
+                })
+                .collect();
+            let file = std::fs::File::create(dir.join(crate::runs::CSV)).unwrap();
+            crate::runs::write_csv_gz(&measurements, file).unwrap();
+        }
+        tmp
+    }
+
+    #[test]
+    fn costs_sum_phase_medians() {
+        let measurements: Vec<Measurement> = [
+            ("a.wasm", Phase::Compilation, 10),
+            ("a.wasm", Phase::Compilation, 30),
+            ("a.wasm", Phase::Execution, 100),
+            ("a.wasm", Phase::Execution, 300),
+            ("b.wasm", Phase::Execution, 7),
+        ]
+        .into_iter()
+        .map(|(wasm, phase, count)| Measurement {
+            arch: "x86_64".into(),
+            engine: "wasmtime".into(),
+            wasm: wasm.into(),
+            phase,
+            event: COST_EVENT.into(),
+            count,
+        })
+        // An event we don't cost by must not count toward the estimate.
+        .chain([Measurement {
+            arch: "x86_64".into(),
+            engine: "wasmtime".into(),
+            wasm: "b.wasm".into(),
+            phase: Phase::Execution,
+            event: "virtual-cycles".into(),
+            count: 10_000,
+        }])
+        .collect();
+        let costs = costs(&measurements);
+        assert_eq!(costs[Path::new("a.wasm")], 330);
+        assert_eq!(costs[Path::new("b.wasm")], 7);
+    }
+
+    #[test]
+    fn estimates_come_from_the_newest_run_measuring_each() {
+        let tmp = data_dir(&[
+            &[("a/benchmark.wasm", Phase::Execution, 500)],
+            &[
+                ("a/benchmark.wasm", Phase::Execution, 100),
+                ("b/b.wasm", Phase::Execution, 200),
+            ],
+        ]);
+        let wasms = [PathBuf::from("a/benchmark.wasm"), PathBuf::from("b/b.wasm")];
+        let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
+        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
+        assert_eq!(estimates[Path::new("b/b.wasm")], 200);
+    }
+
+    #[test]
+    fn estimates_fall_back_to_an_older_run() {
+        // `b` is in the oldest run only, and `c` in none within the lookback.
+        let mut runs: Vec<&[(&str, Phase, u64)]> = vec![&[
+            ("a/benchmark.wasm", Phase::Execution, 9),
+            ("b/b.wasm", Phase::Execution, 7),
+        ]];
+        let later: &[(&str, Phase, u64)] = &[("a/benchmark.wasm", Phase::Execution, 5)];
+        runs.extend(std::iter::repeat_n(later, LOOKBACK));
+        let tmp = data_dir(&runs);
+        let wasms = [
+            PathBuf::from("a/benchmark.wasm"),
+            PathBuf::from("b/b.wasm"),
+            PathBuf::from("c/c.wasm"),
+        ];
+        let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
+        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 5);
+        // Beyond the lookback.
+        assert!(!estimates.contains_key(Path::new("b/b.wasm")));
+        assert!(!estimates.contains_key(Path::new("c/c.wasm")));
+    }
+
+    #[test]
+    fn estimates_skip_excluded_runs() {
+        let tmp = data_dir(&[
+            &[("a/benchmark.wasm", Phase::Execution, 100)],
+            &[("a/benchmark.wasm", Phase::Execution, 999)],
+        ]);
+        std::fs::write(
+            DataDir::new(tmp.path()).path().join(crate::runs::EXCLUDED),
+            "[[excluded]]\nrun = 2\nreason = \"bad\"\n",
+        )
+        .unwrap();
+        let wasms = [PathBuf::from("a/benchmark.wasm")];
+        let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
+        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
+    }
+
+    #[test]
+    fn estimates_with_no_data() {
+        let tmp = tempfile::tempdir().unwrap();
+        let wasms = [PathBuf::from("a/benchmark.wasm")];
+        assert!(
+            estimates(&DataDir::new(tmp.path()), &wasms)
+                .unwrap()
+                .is_empty()
+        );
+    }
+
+    #[test]
+    fn unreadable_runs_are_skipped() {
+        let tmp = data_dir(&[&[("a/benchmark.wasm", Phase::Execution, 100)]]);
+        let data = DataDir::new(tmp.path());
+        let dir = data.run_dir(crate::runs::RunNumber::new(2).unwrap());
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join(crate::runs::CSV), "not gzipped").unwrap();
+        let wasms = [PathBuf::from("a/benchmark.wasm")];
+        let estimates = estimates(&data, &wasms).unwrap();
+        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
+    }
+
+    #[test]
+    fn schedules_longest_first() {
+        let wasms: Vec<PathBuf> = ["a.wasm", "b.wasm", "c.wasm", "d.wasm"]
+            .map(PathBuf::from)
+            .to_vec();
+        let estimates: Estimates = [
+            (PathBuf::from("a.wasm"), 10),
+            (PathBuf::from("b.wasm"), 30),
+            (PathBuf::from("d.wasm"), 20),
+        ]
+        .into();
+        let order: Vec<String> = schedule(&wasms, 2, &estimates)
+            .iter()
+            .map(|u| format!("{} {}", u.wasm.display(), u.iteration))
+            .collect();
+        assert_eq!(
+            order,
+            [
+                // Unestimated, so assumed longest.
+                "c.wasm 0", "c.wasm 1", "b.wasm 0", "b.wasm 1", "d.wasm 0", "d.wasm 1", "a.wasm 0",
+                "a.wasm 1"
+            ]
+        );
+    }
+
+    #[test]
+    fn schedules_in_suite_order_without_estimates() {
+        let wasms: Vec<PathBuf> = ["b.wasm", "a.wasm", "c.wasm"].map(PathBuf::from).to_vec();
+        let units = schedule(&wasms, 1, &Estimates::new());
+        let order: Vec<&Path> = units.iter().map(|u| u.wasm.as_path()).collect();
+        assert_eq!(
+            order,
+            [
+                Path::new("b.wasm"),
+                Path::new("a.wasm"),
+                Path::new("c.wasm")
+            ]
+        );
     }
 
     #[test]
