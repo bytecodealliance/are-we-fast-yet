@@ -59,6 +59,13 @@ header h1 a {
   text-decoration: none;
 }
 
+header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 16px;
+  margin-left: auto;
+}
+
 a {
   color: var(--accent);
 }
