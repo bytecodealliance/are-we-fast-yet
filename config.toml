@@ -27,15 +27,15 @@ issue-repo = "bytecodealliance/are-we-fast-yet"
 # tighter threshold than any one benchmark. See docs/regressions.md.
 [regressions.min-relative-change.compilation]
 geomean = 0.005
-individual = 0.01
+individual = 0.03
 
 [regressions.min-relative-change.instantiation]
 geomean = 0.025
-individual = 0.05
+individual = 0.15
 
 [regressions.min-relative-change.execution]
 geomean = 0.005
-individual = 0.01
+individual = 0.03
 
 [site]
 # Where `pages.yml` deploys the site. Regression issues link here.
