@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-16T19:48:48Z
+finished = 2026-10-16T21:17:47Z
+
+[wasmtime]
+commit = "3c4c9651687c4c9abd1ad6333a1b0416c0ac76fc"
+commit-date = 2026-10-16T16:28:36Z
+
+[[wasmtime.commits]]
+commit = "3c4c9651687c4c9abd1ad6333a1b0416c0ac76fc"
+subject = "Add component support for unknown imports returning default values (#14746)"
+
+[[wasmtime.commits]]
+commit = "2d9c19b0fe7fb17d370b8916f2d774bca187c47f"
+subject = "x64: Lower fcvt_to_{u,s}int{,_sat} to i8 and i16 (#14778)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "d9acf23d5fb91c7e878f7a6c8de524612227e387"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38954678182"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
