@@ -422,8 +422,9 @@ fn summary(outcome: &Outcome) -> String {
             writeln!(s, "## Regressions: run {} vs. {}\n", r.run, r.baseline).unwrap();
             writeln!(
                 s,
-                "Wasmtime `{}`..`{}`. A change counts when a Mann-Whitney U test \
-                 finds it significant at the {} level and it clears its phase's \
+                "Wasmtime `{}`..`{}`.\n\n\
+                 A change counts when a Mann-Whitney U test finds it \
+                 significant at the `{}` level and it clears its phase's \
                  minimum relative change:\n",
                 short(&r.baseline_commit),
                 short(&r.commit),
@@ -463,6 +464,7 @@ pub fn threshold_table(s: &mut String, min: &MinRelativeChange) {
 
 fn change_table(s: &mut String, title: &str, changes: &[Change]) {
     if changes.is_empty() {
+        writeln!(s, "### {title}\n").unwrap();
         writeln!(s, "No {}.\n", title.to_lowercase()).unwrap();
         return;
     }
