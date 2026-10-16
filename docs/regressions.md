@@ -5,8 +5,9 @@ in `excluded.toml`. It skips the comparison if the fingerprints differ or the
 Wasmtime commit is unchanged.
 
 A (benchmark, phase) regresses when its virtual cycles change is both
-statistically significant and at least `min-relative-change`. Speedups appear in
-the job summary but never file issues.
+statistically significant and at least `min-relative-change`, and does not
+carry the branch-aliasing signature below. Speedups and suppressed regressions
+appear in the job summary but never file issues.
 
 ## Thresholds
 
@@ -17,6 +18,27 @@ the job summary but never file issues.
 geomean = 0.002
 individual = 0.01
 ```
+
+## Branch aliasing
+
+An execution-phase regression is suppressed when branch misses account for at
+least 90% of the virtual-cycles delta and `instructions-retired` moved less
+than 0.1%. It is still listed in the job summary, with both numbers.
+
+Callgrind's branch predictors are far smaller than real hardware's: the branch
+target cache is 512 entries, direct-mapped and untagged, indexed by the low
+bits of the branch address. A code layout change that collides two hot branches
+makes them evict each other on every execution, and at 15 virtual cycles per
+miss the delta clears the reporting threshold while the benchmark runs the same
+instructions, from byte-identical code, in the same wall-clock time. `awfy run`
+disables ASLR, so this reproduces rather than averaging out.
+
+The instruction gate keeps the rule from hiding real work: extra mispredicted
+branches in real code come with extra executed branches. Lowering the
+branch-miss weight is not an alternative. Misses are 18-39% of virtual cycles
+on the dispatch-heavy benchmarks, so a lower weight shrinks the denominator and
+inflates every other benchmark's relative change; at 0 the suite goes blind to
+how Cranelift compiles switch dispatch.
 
 ## Statistics
 

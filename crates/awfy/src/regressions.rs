@@ -9,12 +9,30 @@ use anyhow::{Context, Result};
 use serde::{Serialize, Serializer};
 use sightglass_analysis::geomean::{self, GEOMEAN, GeomeanEffectSize};
 use sightglass_data::{EffectSize, Engine, Measurement, Phase};
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write as _;
 use std::path::{Path, PathBuf};
 
 /// The event regressions are reported on.
 pub const VIRTUAL_CYCLES: &str = "virtual-cycles";
+
+/// The event counting work done rather than how well it was predicted.
+const INSTRUCTIONS: &str = "instructions-retired";
+
+/// The events `Suppressed` attributes to misprediction.
+const BRANCH_MISS_EVENTS: [&str; 2] = ["conditional-branch-misses", "indirect-branch-misses"];
+
+/// A branch miss's cost in virtual cycles. Keep in sync with
+/// `ParsedCallgrindDump::virtual_cycles` in
+/// `sightglass/crates/recorder/src/measure/callgrind.rs`.
+const BRANCH_MISS_WEIGHT: f64 = 15.0;
+
+/// Branch misses must be at least this much of the delta to suppress. Can
+/// exceed 1, when every other term moved the other way.
+const SUPPRESS_BRANCH_MISS_SHARE: f64 = 0.9;
+
+/// ... and `instructions-retired` must have stayed within this much.
+const SUPPRESS_INSTRUCTIONS_CHANGE: f64 = 0.001;
 
 /// Options for the `awfy regressions` command.
 #[derive(clap::Args)]
@@ -98,6 +116,8 @@ pub struct Report {
     pub min_relative_change: MinRelativeChange,
     /// Virtual-cycles regressions, Geomean first, then largest first.
     pub regressions: Vec<Change>,
+    /// Regressions held back by the branch-aliasing rule, in the same order.
+    pub suppressed: Vec<Suppressed>,
     /// Virtual-cycles speedups, in the same order.
     speedups: Vec<Change>,
     /// Other events that changed for the regressed (benchmark, phase) pairs,
@@ -217,6 +237,67 @@ impl Change {
             .cmp(&(a.benchmark == GEOMEAN))
             .then(b.ratio.total_cmp(&a.ratio))
             .then_with(|| (&a.benchmark, a.phase, &a.event).cmp(&(&b.benchmark, b.phase, &b.event)))
+    }
+}
+
+/// Every event's `(old, new)` medians, keyed by benchmark, phase, and event.
+///
+/// Includes counters that moved too little to be reported in their own right,
+/// which is what `Suppressed::check` needs.
+type Medians<'a> = BTreeMap<(&'a str, Phase, &'a str), (f64, f64)>;
+
+/// A regression held back because its delta is branch misses alone, with
+/// `instructions-retired` flat.
+///
+/// Callgrind's branch predictors are small and aliasing-prone, so a code
+/// layout change can collide two hot branches and explode the miss count with
+/// no change in the work done. See `docs/regressions.md`.
+#[derive(Clone, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Suppressed {
+    /// The regression that would otherwise have been reported.
+    pub change: Change,
+    /// Branch misses' share of the virtual-cycles delta, as a fraction. Can
+    /// exceed 1, when every other term moved the other way.
+    pub branch_miss_share: f64,
+    /// How much `instructions-retired` changed, signed, as a fraction.
+    pub instructions_change: f64,
+}
+
+impl Suppressed {
+    /// Hold `c` back if it carries the signature. Only execution-phase
+    /// benchmarks are candidates; the geomean has no counters of its own.
+    fn check(c: &Change, medians: &Medians) -> Option<Self> {
+        if c.phase != Phase::Execution || c.benchmark == GEOMEAN {
+            return None;
+        }
+        let median = |event| {
+            medians
+                .get(&(c.benchmark.as_str(), c.phase, event))
+                .copied()
+        };
+        let delta = c.new - c.old;
+        if delta <= 0.0 {
+            return None;
+        }
+        let mut branch_miss_delta = 0.0;
+        for event in BRANCH_MISS_EVENTS {
+            let (old, new) = median(event)?;
+            branch_miss_delta += BRANCH_MISS_WEIGHT * (new - old);
+        }
+        let (old, new) = median(INSTRUCTIONS)?;
+        if old <= 0.0 {
+            return None;
+        }
+        let branch_miss_share = branch_miss_delta / delta;
+        let instructions_change = (new - old) / old;
+        let matches = branch_miss_share >= SUPPRESS_BRANCH_MISS_SHARE
+            && instructions_change.abs() < SUPPRESS_INSTRUCTIONS_CHANGE;
+        matches.then(|| Self {
+            change: c.clone(),
+            branch_miss_share,
+            instructions_change,
+        })
     }
 }
 
@@ -374,6 +455,26 @@ fn compare_measurements(
             classify(&e.event, Change::from_effect_size(e, &a, &b));
         }
     }
+    // Every event, significant or not: the counters `Suppressed::check` reads
+    // often move too little to be classified above.
+    let medians: Medians = effect_sizes
+        .iter()
+        .map(|e| {
+            (
+                (e.wasm.as_ref(), e.phase, e.event.as_ref()),
+                (e.a_median, e.b_median),
+            )
+        })
+        .collect();
+    let mut suppressed = Vec::new();
+    regressions.retain(|c| match Suppressed::check(c, &medians) {
+        Some(s) => {
+            suppressed.push(s);
+            false
+        }
+        None => true,
+    });
+
     let regressed: BTreeSet<(&str, Phase)> = regressions
         .iter()
         .map(|c| (c.benchmark.as_str(), c.phase))
@@ -385,6 +486,7 @@ fn compare_measurements(
         .collect();
 
     regressions.sort_by(Change::order);
+    suppressed.sort_by(|a, b| Change::order(&a.change, &b.change));
     speedups.sort_by(Change::order);
     other_counters.sort_by(Change::order);
 
@@ -396,6 +498,7 @@ fn compare_measurements(
         significance_level: significance,
         min_relative_change: min.clone(),
         regressions,
+        suppressed,
         speedups,
         other_counters,
         skipped_benchmarks,
@@ -433,6 +536,7 @@ fn summary(outcome: &Outcome) -> String {
             .unwrap();
             threshold_table(&mut s, &r.min_relative_change);
             change_table(&mut s, "Regressions", &r.regressions);
+            suppressed_table(&mut s, &r.suppressed);
             change_table(&mut s, "Speedups", &r.speedups);
             if !r.skipped_benchmarks.is_empty() {
                 writeln!(s, "### Skipped benchmarks\n").unwrap();
@@ -456,6 +560,47 @@ pub fn threshold_table(s: &mut String, min: &MinRelativeChange) {
             "| {phase} | {} | {} |",
             percent(t.geomean),
             percent(t.individual)
+        )
+        .unwrap();
+    }
+    writeln!(s).unwrap();
+}
+
+/// The job summary is the only place suppressions are visible, so each one
+/// shows the numbers that justify it.
+fn suppressed_table(s: &mut String, suppressed: &[Suppressed]) {
+    if suppressed.is_empty() {
+        return;
+    }
+    writeln!(s, "### Suppressed ({})\n", suppressed.len()).unwrap();
+    writeln!(
+        s,
+        "Virtual cycles moved, but the delta is branch misses alone and the \
+         instruction count held still. That is Valgrind's branch predictors \
+         aliasing on a code layout change, not a regression; see \
+         `docs/regressions.md`.\n"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "| benchmark | phase | change | branch-miss share | instructions |"
+    )
+    .unwrap();
+    writeln!(
+        s,
+        "|-----------|-------|--------|-------------------|--------------|"
+    )
+    .unwrap();
+    for x in suppressed {
+        writeln!(
+            s,
+            "| `{}` | {} | {} ({}) | {:.1}% | {} |",
+            x.change.benchmark,
+            x.change.phase,
+            signed_percent(x.change.relative_change),
+            interval(&x.change),
+            x.branch_miss_share * 100.0,
+            signed_percent(x.instructions_change),
         )
         .unwrap();
     }
@@ -695,27 +840,49 @@ mod tests {
         assert!(r.speedups.is_empty());
     }
 
-    fn measurement(engine: &str, wasm: &str, phase: Phase, count: u64) -> Measurement<'static> {
+    fn measurement(
+        engine: &str,
+        wasm: &str,
+        phase: Phase,
+        event: &str,
+        count: u64,
+    ) -> Measurement<'static> {
         Measurement {
             arch: "x86_64".into(),
             engine: Engine::from(engine.to_string()),
             wasm: wasm.to_string().into(),
             phase,
-            event: VIRTUAL_CYCLES.into(),
+            event: event.to_string().into(),
             count,
         }
     }
 
-    /// Compare runs 1 and 2 given `(wasm, phase, old counts, new counts)`.
+    /// One `(wasm, phase, event)`'s counts in each of the two runs.
+    type Row<'a> = (&'a str, Phase, &'a str, &'a [u64], &'a [u64]);
+
+    /// A `Row` owning its counts.
+    type OwnedRow = (&'static str, Phase, &'static str, Vec<u64>, Vec<u64>);
+
+    /// Compare runs 1 and 2 given each `(wasm, phase)`'s virtual cycles.
     fn compare_counts(rows: &[(&str, Phase, &[u64], &[u64])]) -> Report {
+        let rows: Vec<Row> = rows
+            .iter()
+            .map(|&(wasm, phase, a, b)| (wasm, phase, VIRTUAL_CYCLES, a, b))
+            .collect();
+        compare_events(&rows)
+    }
+
+    /// The same, with the event named, for the other counters
+    /// `Suppressed::check` reads.
+    fn compare_events(rows: &[Row]) -> Report {
         let mut old = Vec::new();
         let mut new = Vec::new();
-        for &(wasm, phase, a, b) in rows {
+        for &(wasm, phase, event, a, b) in rows {
             for &c in a {
-                old.push(measurement("x", wasm, phase, c));
+                old.push(measurement("x", wasm, phase, event, c));
             }
             for &c in b {
-                new.push(measurement("y", wasm, phase, c));
+                new.push(measurement("y", wasm, phase, event, c));
             }
         }
         let mut meta = crate::metadata::tests::example();
@@ -802,6 +969,116 @@ mod tests {
         assert_eq!(order, [GEOMEAN, "a.wasm", "b.wasm"]);
     }
 
+    /// A benchmark whose counts rose by the given deltas. The spread makes
+    /// the two runs separate completely, so the comparison is significant.
+    fn branch_miss_rows(vcycles_delta: i64, miss_delta: i64, insts_delta: i64) -> Vec<OwnedRow> {
+        let spread = |base: i64| -> Vec<u64> {
+            [-2i64, -1, 0, 0, 1, 2]
+                .iter()
+                .map(|d| (base + d) as u64)
+                .collect()
+        };
+        vec![
+            (
+                "a.wasm",
+                Phase::Execution,
+                VIRTUAL_CYCLES,
+                spread(1_000_000),
+                spread(1_000_000 + vcycles_delta),
+            ),
+            (
+                "a.wasm",
+                Phase::Execution,
+                INSTRUCTIONS,
+                spread(800_000),
+                spread(800_000 + insts_delta),
+            ),
+            (
+                "a.wasm",
+                Phase::Execution,
+                "conditional-branch-misses",
+                spread(10_000),
+                spread(10_000 + miss_delta),
+            ),
+            (
+                "a.wasm",
+                Phase::Execution,
+                "indirect-branch-misses",
+                spread(10_000),
+                spread(10_000),
+            ),
+        ]
+    }
+
+    fn compare_branch_misses(vcycles_delta: i64, miss_delta: i64, insts_delta: i64) -> Report {
+        let rows = branch_miss_rows(vcycles_delta, miss_delta, insts_delta);
+        let rows: Vec<_> = rows
+            .iter()
+            .map(|(w, p, e, a, b)| (*w, *p, *e, a.as_slice(), b.as_slice()))
+            .collect();
+        compare_events(&rows)
+    }
+
+    /// Virtual cycles up 4%, all of it branch misses, instructions flat.
+    #[test]
+    fn suppresses_branch_aliasing() {
+        // 40000 virtual cycles is 2667 misses at weight 15.
+        let r = compare_branch_misses(40_000, 2_667, 0);
+        assert!(r.regressions.is_empty(), "{:?}", r.regressions);
+        assert_eq!(r.suppressed.len(), 1, "{:?}", r.suppressed);
+        let x = &r.suppressed[0];
+        assert_eq!(x.change.benchmark, "a.wasm");
+        assert!((x.branch_miss_share - 1.0).abs() < 0.01, "{x:?}");
+        assert_eq!(x.instructions_change, 0.0);
+        // Not a regressed pair, so it carries no other counters either.
+        assert!(r.other_counters.is_empty(), "{:?}", r.other_counters);
+    }
+
+    /// Instructions moved with it: real work, so it stays reportable however
+    /// much of the delta the misses explain.
+    #[test]
+    fn instructions_moving_defeats_suppression() {
+        let r = compare_branch_misses(40_000, 2_667, 4_000);
+        assert_eq!(r.suppressed, []);
+        assert_eq!(r.regressions.len(), 1, "{:?}", r.regressions);
+    }
+
+    /// Branch misses explain only part of the delta, so the rest is something
+    /// else.
+    #[test]
+    fn partial_branch_miss_share_is_reported() {
+        let r = compare_branch_misses(40_000, 1_333, 0);
+        assert_eq!(r.suppressed, []);
+        assert_eq!(r.regressions.len(), 1, "{:?}", r.regressions);
+    }
+
+    /// A run that recorded only virtual cycles must not be trusted into
+    /// suppression.
+    #[test]
+    fn missing_counters_are_not_suppressed() {
+        let r = compare_counts(&[(
+            "a.wasm",
+            Phase::Execution,
+            &[1000, 1001, 999, 1002, 998, 1000],
+            &[1040, 1041, 1039, 1042, 1038, 1040],
+        )]);
+        assert_eq!(r.suppressed, []);
+        assert_eq!(r.regressions.len(), 1, "{:?}", r.regressions);
+    }
+
+    /// The same signature in another phase is still reported.
+    #[test]
+    fn other_phases_are_not_suppressed() {
+        let rows = branch_miss_rows(40_000, 2_667, 0);
+        let rows: Vec<_> = rows
+            .iter()
+            .map(|(w, _, e, a, b)| (*w, Phase::Compilation, *e, a.as_slice(), b.as_slice()))
+            .collect();
+        let r = compare_events(&rows);
+        assert_eq!(r.suppressed, []);
+        assert_eq!(r.regressions.len(), 1, "{:?}", r.regressions);
+    }
+
     #[test]
     fn snapshots() {
         for run in 1..=6 {
@@ -812,5 +1089,13 @@ mod tests {
             );
             assert_snapshot(&format!("regressions/{run:05}.md"), &summary(&outcome));
         }
+    }
+
+    /// The fixture runs have no branch-miss counters, so the suppressed
+    /// section needs its own snapshot.
+    #[test]
+    fn suppressed_summary_snapshot() {
+        let outcome = Outcome::Compared(compare_branch_misses(40_000, 2_667, 0));
+        assert_snapshot("regressions/suppressed.md", &summary(&outcome));
     }
 }
