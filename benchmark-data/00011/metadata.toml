@@ -1,0 +1,55 @@
+schema = 1
+started = 2026-10-16T00:54:17Z
+finished = 2026-10-16T03:30:08Z
+
+[wasmtime]
+commit = "d8c04f2faad36842e30c386d5c0831db1900ff45"
+commit-date = 2026-10-15T22:03:59Z
+
+[[wasmtime.commits]]
+commit = "d8c04f2faad36842e30c386d5c0831db1900ff45"
+subject = "gdbstub: forward interrupt requests to the debuggee. (#14776)"
+
+[[wasmtime.commits]]
+commit = "6876e3179500b71e0b9a1289308d0a2829aab7cf"
+subject = "Fix a possible panic-after-oom with host resources (#14755)"
+
+[[wasmtime.commits]]
+commit = "d235e33a25b6b5bb5d82c803b9bee1e28963ed95"
+subject = " Fix an inconsistent FuncRefs hole on OOM  (#14773)"
+
+[[wasmtime.commits]]
+commit = "fa3591e0bb9a966e2b4aee34d29e0433eb3abe70"
+subject = "Share GuestProfiler symbol tables through GuestProfilerModules (#14753)"
+
+[[wasmtime.commits]]
+commit = "a559c7fe6c0688973befa40ef2d27420171c7d49"
+subject = "Track live resources and preflight component async table allocations (#14706)"
+
+[[wasmtime.commits]]
+commit = "d4fb9b08426a116eed8668ad071bf543cad198fa"
+subject = "Fix a possible panic with small stacks and Pulley (#14757)"
+
+[[wasmtime.commits]]
+commit = "281af9952f38bbbf7bd8aa9753a4358216d70c19"
+subject = "cranelift: Implement 128-bit atomic CAS for s390x (#14771)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "d8c13a97ba694a3b047c7b20509195f5eda435e2"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38832060361"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
