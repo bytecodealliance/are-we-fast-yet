@@ -26,16 +26,16 @@ issue-repo = "bytecodealliance/are-we-fast-yet"
 # phase is tuned separately, and within a phase the suite geomean is held to a
 # tighter threshold than any one benchmark. See docs/regressions.md.
 [regressions.min-relative-change.compilation]
-geomean = 0.005
-individual = 0.03
+geomean = 0.003
+individual = 0.01
 
 [regressions.min-relative-change.instantiation]
 geomean = 0.025
-individual = 0.15
+individual = 0.20
 
 [regressions.min-relative-change.execution]
 geomean = 0.005
-individual = 0.03
+individual = 0.02
 
 [site]
 # Where `pages.yml` deploys the site. Regression issues link here.
