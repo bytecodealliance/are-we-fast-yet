@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-16T15:25:17Z
+finished = 2026-10-16T17:12:06Z
+
+[wasmtime]
+commit = "5154f1c467af8deb8b59a1e009126838e5ad6d44"
+commit-date = 2026-10-16T14:59:38Z
+
+[[wasmtime.commits]]
+commit = "5154f1c467af8deb8b59a1e009126838e5ad6d44"
+subject = "fix: avoid CoW memory init before trapping table segments (#14780)"
+
+[[wasmtime.commits]]
+commit = "fe5a057f9eef7d78701999d1fa4f802354f03f19"
+subject = "gdbstub and tests: bind to any free port (when instructed); avoid racy integration test. (#14777)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "00e17833166c9ce9331a4ea6ae500d4a198ca7dc"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38923674226"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) 6973P-C"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
