@@ -2,13 +2,17 @@ name: Benchmark
 
 on:
   schedule:
-    # Every three hours, at 17 past: 00:17, 03:17, ... 21:17 UTC.
+    # Every hour, at 17 past.
     #
-    # If, for some bizarre reason, the job takes longer than three hours, then
-    # it is queued. At most one pending job can be queued at a time, and queuing
-    # a new job cancels the previously queued one, so we don't need to worry
-    # about a ton of jobs queueing up.
-    - cron: "17 */3 * * *"
+    # A typical benchmark run takes longer than an hour, but only one runs at a
+    # time, and new ones are queued. However, at most one pending job can be
+    # queued at a time, and queuing a new job cancels the previously queued one,
+    # so we don't need to worry about a ton of jobs queueing up.
+    #
+    # We run this frequently to try and keep regression ranges as narrow as
+    # possible. When the Wasmtime commit hasn't changed, we don't run
+    # benchmarks, so this doesn't unnecessarily waste a bunch of compute either.
+    - cron: "17 * * * *"
   workflow_dispatch:
     inputs:
       force:
