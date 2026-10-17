@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-10-16T21:36:41Z
+finished = 2026-10-17T00:10:28Z
+
+[wasmtime]
+commit = "a33c18ed395ab09d8366d593c7941fc479efa9c6"
+commit-date = 2026-10-16T21:02:22Z
+
+[[wasmtime.commits]]
+commit = "a33c18ed395ab09d8366d593c7941fc479efa9c6"
+subject = "wasi-http: Add a benchmark of a p3 wasi:http proxy (#14787)"
+
+[[wasmtime.commits]]
+commit = "da9d8ca0d9fbb011df42c58dd2cf227e538e8f1c"
+subject = "test-programs: Release mode feature (#14786)"
+
+[[wasmtime.commits]]
+commit = "f624c4dc0e1b04c174d0c2b6864ee21d37969ae7"
+subject = "fix(wasi-http): replace values in `FieldMap::set` (#14715)"
+
+[[wasmtime.commits]]
+commit = "a956f4d5d34045e3e0ea4eb3cb7ab55d76685c5a"
+subject = "Increase minimum GC heap size in wast tests (#14783)"
+
+[[wasmtime.commits]]
+commit = "d45092f4d9bfe783f897342d872e8d3c8888de0d"
+subject = "Exclude `InterruptPoll` from fuzzing (#14781)"
+
+[[wasmtime.commits]]
+commit = "ce2794bbf28c4ae1d2afb6620b2de17ab8e7b740"
+subject = "Represent globals as a proper `union`, fix provenance (#14782)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "fd4ab577e0cb67fe86f92b7193157c2392d346c5"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/38970415177"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
