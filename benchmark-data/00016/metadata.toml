@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-10-19T19:28:21Z
+finished = 2026-10-19T22:02:57Z
+
+[wasmtime]
+commit = "68b32edee91bff1d33db63b50a04464f5d034e30"
+commit-date = 2026-10-19T18:52:05Z
+
+[[wasmtime.commits]]
+commit = "68b32edee91bff1d33db63b50a04464f5d034e30"
+subject = "Fix the Switch helper for i128 types (#14807)"
+
+[[wasmtime.commits]]
+commit = "48dacc76241f06088e79f3ce1b17642f2f7bf158"
+subject = "Centralize type-checks of futures/streams (#14827)"
+
+[[wasmtime.commits]]
+commit = "e61df1b454be9313d61a5f8de07722a421139bbe"
+subject = "Cranelift/aarch64: fix br_tables with very large target count. (#14826)"
+
+[[wasmtime.commits]]
+commit = "5db2f0b01f92782d481521c1b7776a1fb5d8ddee"
+subject = "wasi-http p3: correctly enforce content-length for response bodies (#14822)"
+
+[[wasmtime.commits]]
+commit = "dcfbea188d3e4bc1cebabc48e610ccba66bf23d0"
+subject = "write the coredump to the configured path (#14779)"
+
+[[wasmtime.commits]]
+commit = "b8c95e33366c8da5ce84c7f40b875a64c394cf03"
+subject = "cranelift: Simplify i8/i16 division by constants via i32 (#14795)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "82d51ba9ef3775ed6aec69d94926d42c2e682bef"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39310667101"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
