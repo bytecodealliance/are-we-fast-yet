@@ -54,8 +54,12 @@ jobs:
       DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
       SUITE: ${{ inputs.suite }}
     steps:
+      # A queued job can start hours after its trigger, so check out the tip
+      # rather than `github.sha`, which would miss the data pushed in the
+      # meantime and reuse its run number.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ github.ref }}
           submodules: recursive
 
       - uses: ./.github/actions/rust-cache
