@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-10-20T21:59:31Z
+finished = 2026-10-20T23:26:28Z
+
+[wasmtime]
+commit = "c4996f99c720482a150419b0d12670644697c6ec"
+commit-date = 2026-10-20T20:55:49Z
+
+[[wasmtime.commits]]
+commit = "c4996f99c720482a150419b0d12670644697c6ec"
+subject = "Also mark `VMGcRef::heap_index` as `inline` (#14888)"
+
+[[wasmtime.commits]]
+commit = "199abd8b5bfc267cd9d652b985f280b9a5c321c5"
+subject = "Match canonical implements names in `is_implements` (#14866)"
+
+[[wasmtime.commits]]
+commit = "ba74a9face6d88f392ce03339f9591926aa15c1a"
+subject = "Improve docs and tests for implements (#14868)"
+
+[[wasmtime.commits]]
+commit = "514478c02ff6eaccd22d77bee91f6fc52869e453"
+subject = "Handle empty names in the component C API (#14869)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "baef91aed13764db483e799bb027261310490f0a"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39500522457"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
