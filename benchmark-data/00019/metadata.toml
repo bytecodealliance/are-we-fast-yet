@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-20T05:30:04Z
+finished = 2026-10-20T07:27:50Z
+
+[wasmtime]
+commit = "fa20b4c09b3002afb1b20eb5a3385c28a4290d63"
+commit-date = 2026-10-20T04:42:26Z
+
+[[wasmtime.commits]]
+commit = "fa20b4c09b3002afb1b20eb5a3385c28a4290d63"
+subject = "Run resource destructors with an event loop (#14863)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "9c8041c2674b8b1b7767ad85df73db5e0c101f35"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39375161842"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
