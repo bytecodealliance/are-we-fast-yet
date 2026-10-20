@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-20T17:28:19Z
+finished = 2026-10-20T20:02:42Z
+
+[wasmtime]
+commit = "00954ef8e7db08d7e612bf0109a713ccea5ddd2c"
+commit-date = 2026-10-20T16:46:18Z
+
+[[wasmtime.commits]]
+commit = "00954ef8e7db08d7e612bf0109a713ccea5ddd2c"
+subject = "cranelift: Implement 128-bit atomic RMW for s390x (#14809)"
+
+[[wasmtime.commits]]
+commit = "e6487ad97303896fc804e9c042f2dd805e176bc3"
+subject = "x64: Lower single-source `shuffle` of distinct operands to one `pshufb` (#14849)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "829290b74214bba3def8f2310dcc8acce3246b2d"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39466238600"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
