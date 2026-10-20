@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-10-20T20:30:50Z
+finished = 2026-10-20T21:57:28Z
+
+[wasmtime]
+commit = "1befdc522f0c6a6307284ab4734abf512b272e2c"
+commit-date = 2026-10-20T19:58:20Z
+
+[[wasmtime.commits]]
+commit = "1befdc522f0c6a6307284ab4734abf512b272e2c"
+subject = "Validate map pointer/length before allocating when lifting (#14835)"
+
+[[wasmtime.commits]]
+commit = "d91c66a66f9955a30b468fe06c93a90cc97727f1"
+subject = "Add a C API test for component map values (#14840)"
+
+[[wasmtime.commits]]
+commit = "9497cbed449dec308ca5d8eec4de72c3e7fc2b99"
+subject = "Add tests for map<K, V> in bindgen! and the typed API (#14834)"
+
+[[wasmtime.commits]]
+commit = "d23440d83f7f105b3494500d0b65c3853f32fe23"
+subject = "Respect type ascriptions on component exports (#14865)"
+
+[[wasmtime.commits]]
+commit = "c3f66a31a83b336a7c11c3e7661213e08815c30f"
+subject = "Mark `GcHeap::index[_mut]` methods as `inline(always)` (#14887)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "bdfefc3eda642efd5a29af7ec66893c0ab40290f"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39492477314"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
