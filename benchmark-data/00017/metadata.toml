@@ -1,0 +1,75 @@
+schema = 1
+started = 2026-10-19T23:35:31Z
+finished = 2026-10-20T01:28:15Z
+
+[wasmtime]
+commit = "95e9cf3ea56d4941f578bd6b289682dd11b9dbbe"
+commit-date = 2026-10-19T22:02:18Z
+
+[[wasmtime.commits]]
+commit = "95e9cf3ea56d4941f578bd6b289682dd11b9dbbe"
+subject = "Fix a possibly `bail_bug!` calling functions from streams (#14850)"
+
+[[wasmtime.commits]]
+commit = "74873acfb57da0051c431faf5f2ce5273b758776"
+subject = "wasmtime-cache: Compute cleanup thresholds without overflowing (#14805)"
+
+[[wasmtime.commits]]
+commit = "bdd4ae9b487df0ac5d68fbbd9efefc1adbd0fabf"
+subject = "Add validation tests for component model map key types (#14841)"
+
+[[wasmtime.commits]]
+commit = "ed4a3bc215e91965315a5e98d0e12e7b67019a99"
+subject = "Handle OOM with resources from the host (#14851)"
+
+[[wasmtime.commits]]
+commit = "40025dd9f8761293648a1f3782731c97a47aed48"
+subject = "Don't panic on invalid adapter modules (#14846)"
+
+[[wasmtime.commits]]
+commit = "8c58d484c81736d642a92f31e60c14122ede4ca0"
+subject = "Fix processing GC heap types in components (#14828)"
+
+[[wasmtime.commits]]
+commit = "842cbb4e6f60d1d0e207434349848df7f9f76a63"
+subject = "wasmtime-wasi-http p3: apply forbidden header check to trailers (#14823)"
+
+[[wasmtime.commits]]
+commit = "7cc911f446b4f1324ab42243ac02b7f589232c27"
+subject = "Apply the HTTP `connect_timeout` once, not multiple times (#14829)"
+
+[[wasmtime.commits]]
+commit = "ff0a08667c271a4b2957b2e9daccf58de3f46232"
+subject = "wasi-http: Prohibit duplicate content length headers (#14824)"
+
+[[wasmtime.commits]]
+commit = "e4c3b8ebd01ab35c40659b522c1529f973e6213b"
+subject = "add `wasmtime_wasi_http::handler::WorkerState::poll` (#14847)"
+
+[[wasmtime.commits]]
+commit = "68498946e7efc17bda7411c1584a082e52b2ee5c"
+subject = "Fix spurious `call_async` guests running (#14825)"
+
+[[wasmtime.commits]]
+commit = "04549dc12841dadc8ede6442669e4174dc3bbd84"
+subject = "Switch to `actions/attest` (#14808)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "e4de8c3027b40709753de4122a2aa0f764948c0f"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39341604292"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
