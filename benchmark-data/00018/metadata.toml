@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-20T01:29:56Z
+finished = 2026-10-20T04:14:26Z
+
+[wasmtime]
+commit = "c16fd4dee9ae8138d46c77533b990b7505431a7d"
+commit-date = 2026-10-19T23:29:29Z
+
+[[wasmtime.commits]]
+commit = "c16fd4dee9ae8138d46c77533b990b7505431a7d"
+subject = "Fix custom vm + pooling allocator (#14874)"
+
+[[wasmtime.commits]]
+commit = "5d0c7b4d2ae4596430525c5dab61074b78d018ef"
+subject = "Fix an addition overflow when configuring the pooling allocator (#14864)"
+
+[[wasmtime.commits]]
+commit = "11e41bcbff45d8e758e7b0f3672a5096190520ce"
+subject = "Clarify map docs and add `Type::unwrap_map` (#14839)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "f484114b96c66728f383c24c9946958d4fabebee"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39350766052"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
