@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-21T15:30:31Z
+finished = 2026-10-21T18:04:36Z
+
+[wasmtime]
+commit = "f031a62ff4cd5e1478b51a79f8c10040b393cabe"
+commit-date = 2026-10-21T14:24:33Z
+
+[[wasmtime.commits]]
+commit = "f031a62ff4cd5e1478b51a79f8c10040b393cabe"
+subject = "Fix `bindgen!` with labelled imports and exports (#14867)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "a9ba2913a7a77257af2afa402cfbf6c25c0b002d"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39626199769"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
