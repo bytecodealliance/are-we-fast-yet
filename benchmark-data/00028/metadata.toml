@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-10-21T20:41:37Z
+finished = 2026-10-21T23:40:30Z
+
+[wasmtime]
+commit = "6f6813d6e0b9ede450f8a901179e21bd6def81e4"
+commit-date = 2026-10-21T19:51:06Z
+
+[[wasmtime.commits]]
+commit = "6f6813d6e0b9ede450f8a901179e21bd6def81e4"
+subject = "wasi-nn: return errors for invalid ONNX input tensors (#14532)"
+
+[[wasmtime.commits]]
+commit = "6a92dc7de66c3d6da355e3af5e3f58c6f6d1b990"
+subject = "Avoid overflow in the `lifo_generation` counter (#14911)"
+
+[[wasmtime.commits]]
+commit = "1a9d6d2d41603924ce0bedc36c5c2f50d2fd6b74"
+subject = "Allow stackful tasks to enter instances at any time (#14905)"
+
+[[wasmtime.commits]]
+commit = "fda11bca86cc2547da221e09b52b71400c8c2ea2"
+subject = "wasi-http: fill in scheme and authority for p3 serve requests (#14898)"
+
+[[wasmtime.commits]]
+commit = "602fc9587c74a6bf64f5a84c80e93e5d4fbe5eaf"
+subject = "Fix a `bail_bug!` on recursive host calls (#14910)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "87e69a94bae148cd08ea80e07693c182d4ea7d4b"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39670625258"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
