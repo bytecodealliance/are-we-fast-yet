@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-10-21T18:06:33Z
+finished = 2026-10-21T20:39:38Z
+
+[wasmtime]
+commit = "f157b3e0302beef71b2ae8029feafcc5ea802d7f"
+commit-date = 2026-10-21T17:02:23Z
+
+[[wasmtime.commits]]
+commit = "f157b3e0302beef71b2ae8029feafcc5ea802d7f"
+subject = "reject userinfo in wasi-http request authorities (#14747)"
+
+[[wasmtime.commits]]
+commit = "4fefefc0e96ddb832a3b887453820f96e0706ba3"
+subject = "Update some certificate-related deps (#14900)"
+
+[[wasmtime.commits]]
+commit = "7e6d4a3f01ab1e1521dd31a50f6aec4e9abcd46a"
+subject = "serve: Gracefully shut down on SIGTERM (#14904)"
+
+[[wasmtime.commits]]
+commit = "19ac91fffc667dc9cdd3528c48131dfc513f63b2"
+subject = "wasi-http: test between-bytes-timeout on p3 (#14886)"
+
+[[wasmtime.commits]]
+commit = "0973fbe39508b7f5460d8c96b044631191dfaa83"
+subject = "serve: reject --addr with --systemd-listenfd (#14902)"
+
+[[wasmtime.commits]]
+commit = "65fb6644964ed81934d2280f4d02e6d6ea7a2a90"
+subject = "Moving to `LinearMemory` trait and fixing custom memories (#14885)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "865c388ef76d4b432b8a22f2867f5bbe5285b3cf"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39643729137"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
