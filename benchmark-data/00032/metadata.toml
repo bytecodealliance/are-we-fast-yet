@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-10-22T20:31:50Z
+finished = 2026-10-22T23:39:58Z
+
+[wasmtime]
+commit = "9427dafef0e2487cf24a9a65eea4d328c774793e"
+commit-date = 2026-10-22T19:53:07Z
+
+[[wasmtime.commits]]
+commit = "9427dafef0e2487cf24a9a65eea4d328c774793e"
+subject = "serve: reject concurrency limits above the semaphore maximum (#14936)"
+
+[[wasmtime.commits]]
+commit = "9a5be0fb6b69a75f23dbff66622688f8dca1e6cf"
+subject = "Update the upstream spec test suite (#14933)"
+
+[[wasmtime.commits]]
+commit = "9ddb1597e266f8fbddb3c208ca381b53445a721e"
+subject = "x64: add APX NDD lowering for simple integer binary ops (#14930)"
+
+[[wasmtime.commits]]
+commit = "87b9f6d982450c2470fcf6e6ea224d3c6040614c"
+subject = "Add a `map_type` option to `bindgen!`, defaulting to `BTreeMap` (#14927)"
+
+[[wasmtime.commits]]
+commit = "c961398bf96939dd879f5ae016c7129d8cc1ada4"
+subject = "Use some more `TryVec` in a module (#14909)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "c80e1e8acc78310246cfc966e4d42144a1ad40bb"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39849093347"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
