@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-22T18:37:19Z
+finished = 2026-10-22T20:29:28Z
+
+[wasmtime]
+commit = "f1b53bf0c1904c06cbfc1348e020cc0f13b90537"
+commit-date = 2026-10-22T18:04:48Z
+
+[[wasmtime.commits]]
+commit = "f1b53bf0c1904c06cbfc1348e020cc0f13b90537"
+subject = "Cranelift: forward debug tags on `try_call` during lowering (#14881)"
+
+[[wasmtime.commits]]
+commit = "e561d3d35daa7a6417a9a7b2195d619d5c7f4dd5"
+subject = "Inline a few libcall impls into their raw wrappers regardless of CGU slicing (#14940)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "66a4ae8dd7f4b8450c8bb7e2c4cf519f6e42f6ed"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39832311994"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
