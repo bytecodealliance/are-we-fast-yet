@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-22T15:31:29Z
+finished = 2026-10-22T18:35:18Z
+
+[wasmtime]
+commit = "257ecb40e665f5cf38deeeaca552424102327117"
+commit-date = 2026-10-22T14:25:12Z
+
+[[wasmtime.commits]]
+commit = "257ecb40e665f5cf38deeeaca552424102327117"
+subject = "Double the minimum gc heap size again (#14932)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "b4181359f1b5bd16f401a67d1d2fcc241f03e3b4"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39805499109"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmfese6 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
