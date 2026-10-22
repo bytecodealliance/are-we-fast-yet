@@ -161,6 +161,25 @@ pub struct Change {
     pub old_noise: Option<f64>,
     /// The same for the new run. See `old_noise`.
     pub new_noise: Option<f64>,
+    /// `instructions-retired` for this (benchmark, phase). `None` for
+    /// [`GEOMEAN`], which has no counters of its own, and for a (benchmark,
+    /// phase) whose runs did not record the counter. Set after
+    /// classification, in `compare_measurements`.
+    pub instructions: Option<Instructions>,
+}
+
+/// A change's `instructions-retired`, which counts work done rather than how
+/// well it was predicted. Reported beside the virtual cycles it explains.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case")]
+pub struct Instructions {
+    /// How much the count changed, signed, as a fraction.
+    pub change: f64,
+    /// How far the baseline run's counts spread, as a percentage of its
+    /// median. This is the counter's own spread, not the virtual cycles'.
+    pub old_noise: f64,
+    /// The same for the new run.
+    pub new_noise: f64,
 }
 
 impl Change {
@@ -195,6 +214,7 @@ impl Change {
             ratio_high,
             old_noise: Some(e.a_noise()),
             new_noise: Some(e.b_noise()),
+            instructions: None,
         }
     }
 
@@ -228,6 +248,7 @@ impl Change {
             ratio_high,
             old_noise: None,
             new_noise: None,
+            instructions: None,
         }
     }
 
@@ -240,11 +261,20 @@ impl Change {
     }
 }
 
-/// Every event's `(old, new)` medians, keyed by benchmark, phase, and event.
+/// Every event's medians and spread, keyed by benchmark, phase, and event.
 ///
 /// Includes counters that moved too little to be reported in their own right,
 /// which is what `Suppressed::check` needs.
-type Medians<'a> = BTreeMap<(&'a str, Phase, &'a str), (f64, f64)>;
+type Medians<'a> = BTreeMap<(&'a str, Phase, &'a str), EventStats>;
+
+/// One event's `(old, new)` medians and each run's noise.
+#[derive(Clone, Copy, Debug)]
+struct EventStats {
+    old: f64,
+    new: f64,
+    old_noise: f64,
+    new_noise: f64,
+}
 
 /// A regression held back because its delta is branch misses alone, with
 /// `instructions-retired` flat.
@@ -274,7 +304,7 @@ impl Suppressed {
         let median = |event| {
             medians
                 .get(&(c.benchmark.as_str(), c.phase, event))
-                .copied()
+                .map(|s| (s.old, s.new))
         };
         let delta = c.new - c.old;
         if delta <= 0.0 {
@@ -462,10 +492,32 @@ fn compare_measurements(
         .map(|e| {
             (
                 (e.wasm.as_ref(), e.phase, e.event.as_ref()),
-                (e.a_median, e.b_median),
+                EventStats {
+                    old: e.a_median,
+                    new: e.b_median,
+                    old_noise: e.a_noise(),
+                    new_noise: e.b_noise(),
+                },
             )
         })
         .collect();
+    let instructions = |c: &Change| -> Option<Instructions> {
+        if c.benchmark == GEOMEAN {
+            return None;
+        }
+        let s = medians
+            .get(&(c.benchmark.as_str(), c.phase, INSTRUCTIONS))
+            .copied()?;
+        (s.old > 0.0).then(|| Instructions {
+            change: (s.new - s.old) / s.old,
+            old_noise: s.old_noise,
+            new_noise: s.new_noise,
+        })
+    };
+    for c in regressions.iter_mut().chain(speedups.iter_mut()) {
+        c.instructions = instructions(c);
+    }
+
     let mut suppressed = Vec::new();
     regressions.retain(|c| match Suppressed::check(c, &medians) {
         Some(s) => {
@@ -614,17 +666,18 @@ fn change_table(s: &mut String, title: &str, changes: &[Change]) {
         return;
     }
     writeln!(s, "### {title} ({})\n", changes.len()).unwrap();
-    writeln!(s, "| benchmark | phase | change | noise |").unwrap();
-    writeln!(s, "|-----------|-------|--------|-------|").unwrap();
+    writeln!(s, "| benchmark | phase |{HEADER}").unwrap();
+    writeln!(s, "|-----------|-------|{RULE}").unwrap();
     for c in changes {
         writeln!(
             s,
-            "| `{}` | {} | {} ({}) | {} |",
+            "| `{}` | {} | **{}** | {} | {} | {} |",
             c.benchmark,
             c.phase,
-            signed_percent(c.relative_change),
-            interval(c),
+            delta(c),
             noise(c),
+            instructions(c),
+            instructions_noise(c),
         )
         .unwrap();
     }
@@ -644,9 +697,63 @@ pub fn interval(c: &Change) -> String {
 /// geomean aggregates means rather than samples, so it has no spread.
 pub fn noise(c: &Change) -> String {
     match (c.old_noise, c.new_noise) {
-        (Some(old), Some(new)) => format!("{old:.3}% -> {new:.3}%"),
+        (Some(old), Some(new)) => spread(old, new),
         _ => "n/a".to_string(),
     }
+}
+
+/// Two runs' noise, e.g. `0.012% -> 0.015%`.
+fn spread(old: f64, new: f64) -> String {
+    format!("{old:.3}% -> {new:.3}%")
+}
+
+/// A change's `instructions-retired` delta, e.g. `+1.48%`. The suite geomean
+/// has no counters of its own, and a run may not have recorded the event.
+pub fn instructions(c: &Change) -> String {
+    match c.instructions {
+        Some(i) => signed_percent(i.change),
+        None => "n/a".to_string(),
+    }
+}
+
+/// How far each run's `instructions-retired` counts spread. See [`noise`],
+/// which is the same for the virtual cycles.
+pub fn instructions_noise(c: &Change) -> String {
+    match c.instructions {
+        Some(i) => spread(i.old_noise, i.new_noise),
+        None => "n/a".to_string(),
+    }
+}
+
+/// The four columns the regressions and speedups tables share, after
+/// `benchmark` and `phase`. The virtual cycles are what a change is filed and
+/// sorted on, so they are bold.
+pub const HEADER: &str = " **Δ virtual cycles** | virtual cycles noise | \
+                      Δ instructions retired | instructions retired noise |";
+
+/// [`HEADER`]'s separator row.
+pub const RULE: &str = "----------------------|----------------------|\
+                    ------------------------|----------------------------|";
+
+/// A change as a signed percent with its confidence interval, e.g.
+/// `+1.50% (+1.48% to +1.52%)`. Callers reporting the number a change was
+/// filed on bold the whole cell.
+///
+/// `ratio` and its bounds are always at least 1, so a decrease reads them
+/// inverted: they bound `old / new` rather than `new / old`, and inverting
+/// swaps which end is which.
+pub fn delta(c: &Change) -> String {
+    let (low, high) = if c.is_increase() {
+        (c.ratio_low - 1.0, c.ratio_high - 1.0)
+    } else {
+        (1.0 / c.ratio_high - 1.0, 1.0 / c.ratio_low - 1.0)
+    };
+    format!(
+        "{} ({} to {})",
+        signed_percent(c.relative_change),
+        signed_percent(low),
+        signed_percent(high),
+    )
 }
 
 /// The first 12 characters of a SHA.
@@ -1041,6 +1148,32 @@ mod tests {
         let r = compare_branch_misses(40_000, 2_667, 4_000);
         assert_eq!(r.suppressed, []);
         assert_eq!(r.regressions.len(), 1, "{:?}", r.regressions);
+    }
+
+    /// The column exists to tell real work apart from misprediction, so a
+    /// reported regression must show the number rather than `n/a`.
+    #[test]
+    fn instructions_column_shows_a_real_delta() {
+        // 0.5% more instructions, with the misses along for the ride.
+        let r = compare_branch_misses(40_000, 2_667, 4_000);
+        let c = &r.regressions[0];
+        assert_eq!(c.benchmark, "a.wasm");
+        assert_eq!(instructions(c), "+0.50%");
+        let mut s = String::new();
+        change_table(&mut s, "Regressions", &r.regressions);
+        assert!(s.contains("| +0.50% |"), "{s}");
+    }
+
+    /// A run that recorded only virtual cycles has nothing to show.
+    #[test]
+    fn instructions_column_is_n_a_without_the_counter() {
+        let r = compare_counts(&[(
+            "a.wasm",
+            Phase::Execution,
+            &[1000, 1001, 999, 1002, 998, 1000],
+            &[1040, 1041, 1039, 1042, 1038, 1040],
+        )]);
+        assert_eq!(instructions(&r.regressions[0]), "n/a");
     }
 
     /// Branch misses explain only part of the delta, so the rest is something

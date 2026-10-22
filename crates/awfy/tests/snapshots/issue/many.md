@@ -12,20 +12,26 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 | instantiation | 2% | 5% |
 | execution | 0.2% | 1% |
 
-| benchmark | phase | effect size | noise |
-|-----------|-------|-------------|-------|
-| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.050x, 1.046x to 1.054x more virtual cycles | n/a |
-| [`spidermonkey/spidermonkey-json.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=spidermonkey-spidermonkey-json&metric=virtual-cycles) | compilation | 1.100x, 1.096x to 1.104x more virtual cycles | 0.012% -> 0.015% |
-| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | 1.015x, 1.011x to 1.019x more virtual cycles | 0.012% -> 0.015% |
-| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | compilation | 1.020x, 1.016x to 1.024x more virtual cycles | 0.012% -> 0.015% |
+| benchmark | phase | **Δ virtual cycles** | virtual cycles noise | Δ instructions retired | instructions retired noise |
+|-----------|-------|----------------------|----------------------|------------------------|----------------------------|
+| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | **+5.00% (+4.60% to +5.40%)** | n/a | n/a | n/a |
+| [`spidermonkey/spidermonkey-json.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=spidermonkey-spidermonkey-json&metric=virtual-cycles) | compilation | **+10.00% (+9.60% to +10.40%)** | 0.012% -> 0.015% | +8.00% | 0.009% -> 0.011% |
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | **+1.50% (+1.10% to +1.90%)** | 0.012% -> 0.015% | +1.20% | 0.009% -> 0.011% |
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | compilation | **+2.00% (+1.60% to +2.40%)** | 0.012% -> 0.015% | +1.60% | 0.009% -> 0.011% |
+
+A positive delta is a slowdown, a negative delta is a speedup.
+
+`instructions retired` counts work done rather than how well it was predicted. A regression whose instructions didn't move is often Valgrind's branch predictors aliasing on a code layout change; see [`docs/regressions.md`](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/docs/regressions.md).
+
+Each noise column is how far that event's own counts spread.
 
 <details>
 <summary>Other callgrind counters that changed for these benchmarks</summary>
 
-| benchmark | phase | effect size | noise |
-|-----------|-------|-------------|-------|
-| `bz2/benchmark.wasm` | execution | 2.000x, 1.996x to 2.004x more l1 dcache read misses | 0.012% -> 0.015% |
-| `bz2/benchmark.wasm` | execution | 1.111x, 1.107x to 1.115x fewer conditional branches | 0.012% -> 0.015% |
+| benchmark | phase | counter | Δ | noise |
+|-----------|-------|---------|---|-------|
+| `bz2/benchmark.wasm` | execution | `l1-dcache-read-misses` | +100.00% (+99.60% to +100.40%) | 0.012% -> 0.015% |
+| `bz2/benchmark.wasm` | execution | `conditional-branches` | -10.00% (-10.32% to -9.67%) | 0.012% -> 0.015% |
 
 </details>
 

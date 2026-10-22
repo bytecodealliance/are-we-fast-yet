@@ -23,22 +23,18 @@ individual = 0.01
 
 An execution-phase regression is suppressed when branch misses account for at
 least 90% of the virtual-cycles delta and `instructions-retired` moved less
-than 0.1%. It is still listed in the job summary, with both numbers.
+than 0.1%. However, it is still listed in the job summary.
 
 Callgrind's branch predictors are far smaller than real hardware's: the branch
-target cache is 512 entries, direct-mapped and untagged, indexed by the low
-bits of the branch address. A code layout change that collides two hot branches
-makes them evict each other on every execution, and at 15 virtual cycles per
-miss the delta clears the reporting threshold while the benchmark runs the same
-instructions, from byte-identical code, in the same wall-clock time. `awfy run`
-disables ASLR, so this reproduces rather than averaging out.
+target cache is 512 entries, direct-mapped and untagged, indexed by the low bits
+of the branch address. A code layout change that collides two hot branches makes
+them evict each other on every execution, and can cause the delta to clear the
+reporting threshold while the benchmark runs the exact same instructions, from
+byte-identical code, in the same wall-clock time. `awfy run` disables ASLR, so
+this effect reproduces rather than averaging out.
 
 The instruction gate keeps the rule from hiding real work: extra mispredicted
-branches in real code come with extra executed branches. Lowering the
-branch-miss weight is not an alternative. Misses are 18-39% of virtual cycles
-on the dispatch-heavy benchmarks, so a lower weight shrinks the denominator and
-inflates every other benchmark's relative change; at 0 the suite goes blind to
-how Cranelift compiles switch dispatch.
+branches in real code come with extra executed branches.
 
 ## Statistics
 
@@ -72,6 +68,17 @@ of the median. See [site.md](site.md).
 The title ends in `(are-we-fast-yet run NNNNN)`, which is the idempotency key:
 the workflow files nothing if an issue with that suffix exists. A regression is
 reported once; later runs compare against the regressed baseline.
+
+The regressions table, in the issue body and in the job summary alongside the
+speedups table, reports each change as a signed percent with its confidence
+interval, in four columns: the virtual cycles a change is filed on, then
+`instructions-retired`, each followed by that event's own noise.
+
+Instructions separate the engine doing more work from Valgrind mispredicting
+the same work: a regression whose instructions barely moved is usually the
+branch aliasing described above, caught below the 90% share the suppression
+rule requires. Both instructions columns read `n/a` for the suite geomean,
+which has no counters of its own, and for a run that did not record the event.
 
 ## Rollout
 

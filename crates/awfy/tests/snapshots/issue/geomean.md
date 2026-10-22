@@ -12,9 +12,15 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 | instantiation | 2% | 5% |
 | execution | 0.2% | 1% |
 
-| benchmark | phase | effect size | noise |
-|-----------|-------|-------------|-------|
-| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | 1.012x, 1.008x to 1.016x more virtual cycles | n/a |
+| benchmark | phase | **Δ virtual cycles** | virtual cycles noise | Δ instructions retired | instructions retired noise |
+|-----------|-------|----------------------|----------------------|------------------------|----------------------------|
+| [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | **+1.20% (+0.80% to +1.60%)** | n/a | n/a | n/a |
+
+A positive delta is a slowdown, a negative delta is a speedup.
+
+`instructions retired` counts work done rather than how well it was predicted. A regression whose instructions didn't move is often Valgrind's branch predictors aliasing on a code layout change; see [`docs/regressions.md`](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/docs/regressions.md).
+
+Each noise column is how far that event's own counts spread.
 
 ### Commits
 

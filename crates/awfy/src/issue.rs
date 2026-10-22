@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::git::{GitLog, Repo};
 use crate::metadata::Metadata;
-use crate::regressions::{Change, Report, VIRTUAL_CYCLES, short};
+use crate::regressions::{Report, VIRTUAL_CYCLES, short};
 use crate::runs::RunNumber;
 use crate::slug::slug;
 use anyhow::Result;
@@ -76,20 +76,34 @@ fn render(
     )?;
     crate::regressions::threshold_table(&mut b, &report.min_relative_change);
 
-    writeln!(b, "| benchmark | phase | effect size | noise |")?;
-    writeln!(b, "|-----------|-------|-------------|-------|")?;
+    writeln!(b, "| benchmark | phase |{}", crate::regressions::HEADER)?;
+    writeln!(b, "|-----------|-------|{}", crate::regressions::RULE)?;
     for c in &report.regressions {
         writeln!(
             b,
-            "| [`{}`]({site}benchmark.html?b={}&metric={VIRTUAL_CYCLES}) | {} | {} | {} |",
+            "| [`{}`]({site}benchmark.html?b={}&metric={VIRTUAL_CYCLES}) | {} | **{}** | {} | {} | {} |",
             c.benchmark,
             slug(&c.benchmark),
             c.phase,
-            effect(c),
+            crate::regressions::delta(c),
             crate::regressions::noise(c),
+            crate::regressions::instructions(c),
+            crate::regressions::instructions_noise(c),
         )?;
     }
     writeln!(b)?;
+    writeln!(
+        b,
+        "A positive delta is a slowdown, a negative delta is a speedup.\n\
+         \n\
+         `instructions retired` counts work done rather than how well it was \
+         predicted. A regression whose instructions didn't move is often \
+         Valgrind's branch predictors aliasing on a code layout change; see \
+         [`docs/regressions.md`](https://github.com/{}/blob/main/docs/regressions.md).\n\
+         \n\
+         Each noise column is how far that event's own counts spread.\n",
+        config.site.repo
+    )?;
 
     if !report.other_counters.is_empty() {
         writeln!(b, "<details>")?;
@@ -97,15 +111,16 @@ fn render(
             b,
             "<summary>Other callgrind counters that changed for these benchmarks</summary>\n"
         )?;
-        writeln!(b, "| benchmark | phase | effect size | noise |")?;
-        writeln!(b, "|-----------|-------|-------------|-------|")?;
+        writeln!(b, "| benchmark | phase | counter | Δ | noise |")?;
+        writeln!(b, "|-----------|-------|---------|---|-------|")?;
         for c in &report.other_counters {
             writeln!(
                 b,
-                "| `{}` | {} | {} | {} |",
+                "| `{}` | {} | `{}` | {} | {} |",
                 c.benchmark,
                 c.phase,
-                effect(c),
+                c.event,
+                crate::regressions::delta(c),
                 crate::regressions::noise(c),
             )?;
         }
@@ -154,16 +169,6 @@ fn escape(subject: &str) -> String {
         }
     }
     out
-}
-
-/// E.g. `1.230x, 1.210x to 1.250x more virtual cycles`.
-fn effect(c: &Change) -> String {
-    format!(
-        "{} {} {}",
-        crate::regressions::interval(c),
-        if c.is_increase() { "more" } else { "fewer" },
-        c.event.replace('-', " ")
-    )
 }
 
 fn reproduce(b: &mut String, report: &Report, metadata: &Metadata) -> Result<()> {
@@ -245,7 +250,7 @@ pub fn write(
 mod tests {
     use super::*;
     use crate::git::Commit;
-    use crate::regressions::{Outcome, compare};
+    use crate::regressions::{Change, Outcome, compare};
     use crate::runs::DataDir;
     use crate::snapshot::assert_snapshot;
     use sightglass_data::Phase;
@@ -309,6 +314,11 @@ mod tests {
             // The suite geomean has no samples of its own, so no noise.
             old_noise: (!geomean).then_some(0.012),
             new_noise: (!geomean).then_some(0.015),
+            instructions: (!geomean).then_some(crate::regressions::Instructions {
+                change: (new - old) / old * 0.8,
+                old_noise: 0.009,
+                new_noise: 0.011,
+            }),
         }
     }
 

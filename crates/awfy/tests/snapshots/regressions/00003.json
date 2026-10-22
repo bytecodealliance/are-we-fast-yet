@@ -21,6 +21,7 @@
       {
         "benchmark": "Geomean",
         "event": "instructions-retired",
+        "instructions": null,
         "new": 502991.0,
         "new-noise": null,
         "old": 500000.0,
@@ -34,6 +35,7 @@
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "instructions-retired",
+        "instructions": null,
         "new": 1012000.0,
         "new-noise": 0.0197628,
         "old": 1000000.0,
@@ -49,6 +51,7 @@
       {
         "benchmark": "Geomean",
         "event": "virtual-cycles",
+        "instructions": null,
         "new": 1007470.0,
         "new-noise": null,
         "old": 1000000.0,
@@ -62,6 +65,11 @@
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",
+        "instructions": {
+          "change": 0.012,
+          "new-noise": 0.0197628,
+          "old-noise": 0.02
+        },
         "new": 2030000.0,
         "new-noise": 0.0197044,
         "old": 2000000.0,
@@ -80,6 +88,11 @@
       {
         "benchmark": "bz2/benchmark.wasm",
         "event": "virtual-cycles",
+        "instructions": {
+          "change": 0.0,
+          "new-noise": 0.02,
+          "old-noise": 0.02
+        },
         "new": 970000.0,
         "new-noise": 0.0185567,
         "old": 1000000.0,
