@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-10-21T23:42:12Z
+finished = 2026-10-22T01:09:00Z
+
+[wasmtime]
+commit = "54501e9d94bf5b25718f11f69d50583d4e7ce47b"
+commit-date = 2026-10-21T22:12:00Z
+
+[[wasmtime.commits]]
+commit = "54501e9d94bf5b25718f11f69d50583d4e7ce47b"
+subject = "Use the scheme of the connect, not the request target (#14915)"
+
+[[wasmtime.commits]]
+commit = "aceb6b0fb22c18e360b1c82f54ca136b4fbe7925"
+subject = "Try to fix a spurious UDP failure on macOS (#14912)"
+
+[[wasmtime.commits]]
+commit = "0a50af4764b83261a5658bb9fd63904b85f89c5b"
+subject = "Fix a `bail_bug!` eagerly cancelling a guest task (#14923)"
+
+[[wasmtime.commits]]
+commit = "887712e1d8566c48516b9112b917fccac91226a6"
+subject = "wasi-nn: trap instead of panicking on guest memory errors (#14884)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "7ddd1dc5b798ec0fe2fd89faf7dbc2f18f2b54a9"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39693414657"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmxehtw 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
