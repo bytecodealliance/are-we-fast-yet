@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-23T02:17:41Z
+finished = 2026-10-23T04:57:10Z
+
+[wasmtime]
+commit = "65e9dcc3e3399ba5bf76e9d76d8aa6a8ad4f20df"
+commit-date = 2026-10-23T00:04:31Z
+
+[[wasmtime.commits]]
+commit = "65e9dcc3e3399ba5bf76e9d76d8aa6a8ad4f20df"
+subject = "Add context-reuse testing support to `OomTest` (#14955)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "f17a5a20a1a0760911af188fe9f5621c8a03e79a"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39885129626"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
