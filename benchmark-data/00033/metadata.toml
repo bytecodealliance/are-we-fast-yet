@@ -1,0 +1,59 @@
+schema = 1
+started = 2026-10-22T23:41:57Z
+finished = 2026-10-23T02:15:35Z
+
+[wasmtime]
+commit = "8b6439143421b6c31e34f69c51dc31c6cecdcdfd"
+commit-date = 2026-10-22T22:33:22Z
+
+[[wasmtime.commits]]
+commit = "8b6439143421b6c31e34f69c51dc31c6cecdcdfd"
+subject = "Bump table/memory counts for embedder-created items (#14948)"
+
+[[wasmtime.commits]]
+commit = "6ac580fa040e1dbbfc98c9fc7f26a7b965b31373"
+subject = "Fix over-eager validation of payload-less futures/streams (#14952)"
+
+[[wasmtime.commits]]
+commit = "2f1a81b676c46de73ef288fb284e6203f0cd9766"
+subject = "Handle OOM in `Component::deserialize` (#14922)"
+
+[[wasmtime.commits]]
+commit = "c5744b9f8013b483993dd56a5548d9c6755fb139"
+subject = "Fix OOM corrupting the `ModuleRegistry` (#14901)"
+
+[[wasmtime.commits]]
+commit = "c4f7140e2a2790e68a330476ac8cb1e2370f5a2d"
+subject = "Support `BTreeMap`, `IndexMap`, and custom hashers for `map<K, V>` (#14870)"
+
+[[wasmtime.commits]]
+commit = "c3b11a310d636f97039727a86187c48c6e679f0f"
+subject = "aarch64: Reject big-endian load-and-splat (#14944)"
+
+[[wasmtime.commits]]
+commit = "963f9d8fb96f33ac9ca4e3fd3499f2feb04ad44e"
+subject = "Cranelift: zero-extend RISC-V swizzle splat index (#14942)"
+
+[[wasmtime.commits]]
+commit = "0bd8e1c1e1255e45f93094ed4a2cba4757aea9cf"
+subject = "Fix subtype check of functions (#14941)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "a09f08d5b2aa9b5fc72017c26ae25e6d429dd047"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39871776721"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
