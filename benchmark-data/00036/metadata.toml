@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-23T18:14:55Z
+finished = 2026-10-23T20:46:59Z
+
+[wasmtime]
+commit = "cc032d9f1266768a01df5a06964c3a8748902e5e"
+commit-date = 2026-10-23T15:52:46Z
+
+[[wasmtime.commits]]
+commit = "cc032d9f1266768a01df5a06964c3a8748902e5e"
+subject = "Add a missing `RootScope` in `wasm_table_get` (#14913)"
+
+[sightglass]
+commit = "32b5ef283b053e6eb8d4bac78989ea962990e1ea"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "3566449180ba5ebba4d4cc41c3e6ff9c389465b2"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/39995075204"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
