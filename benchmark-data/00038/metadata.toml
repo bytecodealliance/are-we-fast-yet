@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-10-24T00:11:28Z
+finished = 2026-10-24T02:41:53Z
+
+[wasmtime]
+commit = "7a3435824cc3c342bb5e395ce2bcd334cab63d59"
+commit-date = 2026-10-23T19:02:04Z
+
+[[wasmtime.commits]]
+commit = "7a3435824cc3c342bb5e395ce2bcd334cab63d59"
+subject = "Reject async-typed functions in `Func::call` (#14954)"
+
+[[wasmtime.commits]]
+commit = "ffc2f36d04e30c449778fcec1795213ae8ad8d48"
+subject = "Remove thread-switching around completed futures/streams (#14906)"
+
+[[wasmtime.commits]]
+commit = "cd6cbf2f357610efaaaaffa6c0f9f9199dafc265"
+subject = "Fix validating zero-length buffers in `Source::read` (#14903)"
+
+[[wasmtime.commits]]
+commit = "78501808ab6362a0ecf8a888f7d774c661b86965"
+subject = "fix(MachBufferFinalized): add unwind_info accessor (#14882)"
+
+[[wasmtime.commits]]
+commit = "66165fe5f399852e395ad488520bfad620221853"
+subject = "aarch64: remove `MInst::Extend` (#14793)"
+
+[[wasmtime.commits]]
+commit = "24831ba419ae4e4060d5de63181a2be237838ef2"
+subject = "Cranelift: ISLE: veri: add vector canary types to catch missing guards (#14789)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "e5b4267606fed3614117cbd0f794c480878bfdac"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40039594517"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
