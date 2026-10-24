@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-10-24T08:09:30Z
+finished = 2026-10-24T09:32:57Z
+
+[wasmtime]
+commit = "4d3cd09f028414beeb873c924d5b1047b24f3199"
+commit-date = 2026-10-23T21:18:30Z
+
+[[wasmtime.commits]]
+commit = "4d3cd09f028414beeb873c924d5b1047b24f3199"
+subject = "Limit active fibers in a store by default (#14971)"
+
+[[wasmtime.commits]]
+commit = "eeb6a8d1bd1674bebc2b78bc58e3663fbc7c1061"
+subject = "Update documentation on table/memory growth (#14924)"
+
+[[wasmtime.commits]]
+commit = "a6bae652bc56d35149d1653905986e2fea2c46dc"
+subject = "wasi-http: Add benchmarks for individual wasi:http p3 APIs (#14961)"
+
+[[wasmtime.commits]]
+commit = "efcc95eb2e9864a924ce4385b6932ae99e37e8dd"
+subject = "Document, adjust, and refactor some aborts in the C API (#14943)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "569691fdc1baa241015fde7f0510022055156037"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40074223951"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
