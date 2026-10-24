@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-24T04:12:59Z
+finished = 2026-10-24T05:35:50Z
+
+[wasmtime]
+commit = "ea4d25060538735999f24400760d3eec949a408e"
+commit-date = 2026-10-23T19:34:09Z
+
+[[wasmtime.commits]]
+commit = "ea4d25060538735999f24400760d3eec949a408e"
+subject = "Fix a `bail_bug!` when the event loop isn't running (#14951)"
+
+[[wasmtime.commits]]
+commit = "157428df4d989b7b9c7dbfcb8b387b6730fbc046"
+subject = "cranelift: aarch64: pass args after a stack-passed i128 on the stack (#14956)"
+
+[[wasmtime.commits]]
+commit = "b23526e1b07602c3dc8686204a4fd37075d80676"
+subject = "Stop filtering from ending the entire wast suite. (#14968)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "8d8df42f72381ff5bf2834ffdddd8285b49a212c"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40058665226"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
