@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-24T02:43:47Z
+finished = 2026-10-24T04:11:14Z
+
+[wasmtime]
+commit = "25fbc445d73a8d494678ec4959ac9f1fbbb62a28"
+commit-date = 2026-10-23T19:03:06Z
+
+[[wasmtime.commits]]
+commit = "25fbc445d73a8d494678ec4959ac9f1fbbb62a28"
+subject = "Add a `enabled: bool` parameter to `MemFlags` modifiers (#14907)"
+
+[[wasmtime.commits]]
+commit = "a42ca332e60d7db92fee0009bb0b4d56ac865b6e"
+subject = "cranelift-jit: assert that relocations stay within their definition (#14788)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "a29f7d0c4b52dec16c020a5959293674c7f99c2a"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40054758576"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm8k3b6 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
