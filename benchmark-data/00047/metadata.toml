@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-26T21:28:36Z
+finished = 2026-10-26T22:52:33Z
+
+[wasmtime]
+commit = "35cb86d0bc0cabde06f038380da5554b339f6b52"
+commit-date = 2026-10-26T20:31:48Z
+
+[[wasmtime.commits]]
+commit = "35cb86d0bc0cabde06f038380da5554b339f6b52"
+subject = "wasi p2 tcp busy poll test: fix condition changed by tokio upgrade (#14998)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "fb7652139ce76163121871b8101fc423e7a23910"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40404568915"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
