@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-26T17:41:38Z
+finished = 2026-10-26T20:09:47Z
+
+[wasmtime]
+commit = "0881010cd2f1c2fb6c6f754d564dc83ee5a80e7b"
+commit-date = 2026-10-26T16:18:58Z
+
+[[wasmtime.commits]]
+commit = "0881010cd2f1c2fb6c6f754d564dc83ee5a80e7b"
+subject = "Bump flatted from 3.3.1 to 3.4.4 in /crates/explorer (#14994)"
+
+[[wasmtime.commits]]
+commit = "2aed46636e82cb040941a2f275f0fcad0601c0b6"
+subject = "Upgrade tokio to `1.51.6` (#14978)"
+
+[[wasmtime.commits]]
+commit = "6aa9a400cffffab8edffe084eb00558ca0c18b37"
+subject = "Bump actions/github-script from 8 to 9 (#14992)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "be4925d48df9cb9bb928643db89ac2a9fa9d8331"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40368897914"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
