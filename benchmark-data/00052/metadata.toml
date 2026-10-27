@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-10-27T21:02:59Z
+finished = 2026-10-27T22:52:00Z
+
+[wasmtime]
+commit = "4e9504d5ab5b000c12bc5e0228d0d7619cacf8e1"
+commit-date = 2026-10-27T19:36:50Z
+
+[[wasmtime.commits]]
+commit = "4e9504d5ab5b000c12bc5e0228d0d7619cacf8e1"
+subject = "cranelift: check for volatile loads late in alias analysis's classify (#15029)"
+
+[[wasmtime.commits]]
+commit = "5d9cec06d50081d6db21154f425f29515b855779"
+subject = "Cranelift: preserve unchanged alias-region extents across joins (#14797)"
+
+[[wasmtime.commits]]
+commit = "faf15286e0d86962b69e6cd47bf19af09c175ac9"
+subject = "component: Avoid redundant type check and entry move in `ResourceTable::delete` (#14997)"
+
+[[wasmtime.commits]]
+commit = "b0e4035c433ab6b96602fda9d880da82a82bbf29"
+subject = "wasi-http: Report error when guests trap while streaming body (#15028)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "0ef7459b5fbe6b721993998e434ff11108e13e76"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40577450988"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
