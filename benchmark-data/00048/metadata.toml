@@ -1,0 +1,55 @@
+schema = 1
+started = 2026-10-26T22:54:32Z
+finished = 2026-10-27T01:25:24Z
+
+[wasmtime]
+commit = "209d6c4d2963eed81edc839878cddb0a9dc15880"
+commit-date = 2026-10-26T22:15:26Z
+
+[[wasmtime.commits]]
+commit = "209d6c4d2963eed81edc839878cddb0a9dc15880"
+subject = "Don't panic on empty core rec groups in components (#14976)"
+
+[[wasmtime.commits]]
+commit = "65c224427136898e44e9be58e6ab4538cfe2f064"
+subject = "Don't use native signals on Unix targets without signal context support (#14990)"
+
+[[wasmtime.commits]]
+commit = "c50128f314a79318dc4126d2376a66d911aa3ef5"
+subject = "Fix Table::grow panic on unrooted GC init reference (#14931)"
+
+[[wasmtime.commits]]
+commit = "fed40461017aaebde20333fe2bcbad85543f5506"
+subject = "Cranelift: add a `volatile` memory flag that every pass respects (#14999)"
+
+[[wasmtime.commits]]
+commit = "fdc343eaffbba16bc7fef7b602c596ec08c3b173"
+subject = "Add `--post-return-timeout` to `wasmtime serve` (#14880)"
+
+[[wasmtime.commits]]
+commit = "6cbca17b419e8e90a79d20f7a865bfd0a9de7ec8"
+subject = "wasi:io: trap oversized writes in the remaining output streams (#14966)"
+
+[[wasmtime.commits]]
+commit = "9535b22e8c7a9b17380ab3fad305ab247a3a87f9"
+subject = "Add `Global::get_numeric` taking `AsContext` (#14979)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "e7d1d514a1fc1d686e09f42f500d5d5e25767b46"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40412837484"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
