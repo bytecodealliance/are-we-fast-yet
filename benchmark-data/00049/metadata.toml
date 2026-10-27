@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-10-27T01:27:27Z
+finished = 2026-10-27T03:16:43Z
+
+[wasmtime]
+commit = "04f0fcf70248909cc0b6a3ec1d406c7e2d543637"
+commit-date = 2026-10-26T23:55:35Z
+
+[[wasmtime.commits]]
+commit = "04f0fcf70248909cc0b6a3ec1d406c7e2d543637"
+subject = "chore: bump zstd from 0.13.0 to 0.14.3 (#15003)"
+
+[[wasmtime.commits]]
+commit = "38fb6c7eb9cfe8343b31212ae1feea0df14f5f76"
+subject = "Cranelift: merge readonly (but not notrap or can-move) loads. (#14972)"
+
+[[wasmtime.commits]]
+commit = "1b1cba76edac71cb6c12f0dd62727dc5561c54b5"
+subject = "cli flags: document a guest without a timeout may spin forever (#15002)"
+
+[[wasmtime.commits]]
+commit = "bce00ac8672917125bb218c40a18cc141a346b0f"
+subject = "wasmtime-cache: handle clock drift SystemTime addition overflows (#15001)"
+
+[[wasmtime.commits]]
+commit = "d27e208d91426fbec5a9ad5e880eb9113ad41021"
+subject = "Optimize the implementation of `ref.func` (#14683)"
+
+[[wasmtime.commits]]
+commit = "f117e45f1a476f8d08869d7adba7bb1a8689bdd7"
+subject = "Don't panic on an out-of-bounds fault in an imported shared memory (#14982)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "56a5e511f1473eb07a3dfb87d9849f4d9e12f186"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40430013239"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
