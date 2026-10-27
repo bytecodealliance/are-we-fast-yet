@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-27T18:25:37Z
+finished = 2026-10-27T21:00:16Z
+
+[wasmtime]
+commit = "48c6579c9a1eaee45a5062b2e07ab3b5a69bae9b"
+commit-date = 2026-10-27T17:11:44Z
+
+[[wasmtime.commits]]
+commit = "48c6579c9a1eaee45a5062b2e07ab3b5a69bae9b"
+subject = "Optimize poison check for GCs while fuzzing (#15021)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "3d0cc1674228b4682c4aa8c3a8ef901836a93e78"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40559706793"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
