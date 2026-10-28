@@ -1,0 +1,63 @@
+schema = 1
+started = 2026-10-27T22:54:14Z
+finished = 2026-10-28T01:21:22Z
+
+[wasmtime]
+commit = "b1b352b41637deb576277de80b33a06e7b8acf54"
+commit-date = 2026-10-27T22:00:56Z
+
+[[wasmtime.commits]]
+commit = "b1b352b41637deb576277de80b33a06e7b8acf54"
+subject = "Consume hostcall fuel in FACT adapters & streams (#15030)"
+
+[[wasmtime.commits]]
+commit = "c25ec14e5f2a245959c8a8c52e59306a8ac727ec"
+subject = "Remove tests duplicated by existing `*.wast` tests (#15037)"
+
+[[wasmtime.commits]]
+commit = "f032c65d5aee4c7a902e294a8de089cb3c93e8b5"
+subject = "Handle errors when creating C API struct types (#15038)"
+
+[[wasmtime.commits]]
+commit = "9927ce1a05b15435e0ac0f58985c8ff69a125673"
+subject = "Migrate some tests out of `exceptions.rs` to `*.wast` (#15039)"
+
+[[wasmtime.commits]]
+commit = "1b7114ec2f7fd970f031d8d12d39d857cc6a6a7e"
+subject = "Bump actions/deploy-pages from 4 to 5 (#15040)"
+
+[[wasmtime.commits]]
+commit = "f718324ee759374619492a4ad1a4aae65788fd9a"
+subject = "Try to fix docker cache hits in CI (#15035)"
+
+[[wasmtime.commits]]
+commit = "ab9558d450d966bb74d768d3650eea3fc00837db"
+subject = "Fix a debug-only assert linking assert (#15033)"
+
+[[wasmtime.commits]]
+commit = "9a430860ccaa2b871062eb89fe4a37fa9a3c1a4d"
+subject = "Charge handle table slots, not live entries (#15032)"
+
+[[wasmtime.commits]]
+commit = "edb507a7d4fef2927e7c90d74951fb469a311407"
+subject = "Fix a missing `read_string` in wasip1 (#15031)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "86e446e0dd61ad492a1bfc1d0a452b61f7963724"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40594173530"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
