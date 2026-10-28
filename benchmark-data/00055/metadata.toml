@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-10-28T17:19:00Z
+finished = 2026-10-28T20:11:25Z
+
+[wasmtime]
+commit = "c2f7a914008901502a4ebeb565932ee8224b0ffe"
+commit-date = 2026-10-28T16:12:14Z
+
+[[wasmtime.commits]]
+commit = "c2f7a914008901502a4ebeb565932ee8224b0ffe"
+subject = "wasi-http: Ensure buffered body reads aren't dropped when guests pass a host-provided body (#15027)"
+
+[[wasmtime.commits]]
+commit = "b34fad65f3b74cb6d81decbebbe4c297590b8fef"
+subject = "Compose compile-time builtins in memory (#15025)"
+
+[[wasmtime.commits]]
+commit = "11e57c87113b2d82a641b7308ce5b84ba09829e3"
+subject = "CM+GC: Add support for flat scalars (#15043)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "c52b0543e0539ffa73fe9e08e9ea4ed6c52d1fcd"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40725707206"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervmtai0g 6.17.0-1022-azure #22-Ubuntu SMP Mon Jul 27 17:24:03 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
