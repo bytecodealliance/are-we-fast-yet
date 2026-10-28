@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { parseState, serializeState } from "../../js/state.js";
+import { metricOptions, parseState, serializeState } from "../../js/state.js";
 
 const index = {
   phases: ["compilation", "instantiation", "execution"],
@@ -56,4 +56,24 @@ test("defaults come from the index when it lacks the usual ones", () => {
   const { state } = parseState("", { phases: ["compilation"], metrics: ["instructions-retired"] });
   assert.equal(state.phase, "compilation");
   assert.equal(state.metric, "instructions-retired");
+});
+
+test("metric options put the featured metrics first", () => {
+  assert.deepEqual(
+    metricOptions(["cycles", "instructions-retired", "virtual-cycles", "bytes"]),
+    ["virtual-cycles", "instructions-retired", null, "bytes", "cycles"],
+  );
+});
+
+test("metric options drop the separator when a group is empty", () => {
+  assert.deepEqual(metricOptions(["virtual-cycles", "instructions-retired"]), [
+    "virtual-cycles",
+    "instructions-retired",
+  ]);
+  assert.deepEqual(metricOptions(["cycles", "bytes"]), ["bytes", "cycles"]);
+  assert.deepEqual(metricOptions([]), []);
+});
+
+test("metric options keep a featured metric that is missing out", () => {
+  assert.deepEqual(metricOptions(["bytes", "virtual-cycles"]), ["virtual-cycles", null, "bytes"]);
 });

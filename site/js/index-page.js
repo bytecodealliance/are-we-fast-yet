@@ -4,7 +4,7 @@ import { Data, joinSeries, seriesPoints } from "./data.js";
 import { el, relToggle, replaceState, select, showError, start } from "./page.js";
 import { plot } from "./plot.js";
 import { slug } from "./slug.js";
-import { parseState, serializeState } from "./state.js";
+import { metricOptions, parseState, serializeState } from "./state.js";
 import { fingerprintMarkers } from "./transform.js";
 
 start(async () => {
@@ -20,7 +20,7 @@ start(async () => {
   };
   document.getElementById("controls").append(
     select("Phase", index.phases, state.phase, (v) => ((state.phase = v), rerender())),
-    select("Metric", index.metrics, state.metric, (v) => ((state.metric = v), rerender())),
+    select("Metric", metricOptions(index.metrics), state.metric, (v) => ((state.metric = v), rerender())),
     relToggle(state.rel, (v) => ((state.rel = v), rerender())),
   );
 

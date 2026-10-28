@@ -3,7 +3,7 @@
 import { Data, benchmarkForSlug, joinSeries, seriesPoints } from "./data.js";
 import { el, relToggle, replaceState, select, showError, start } from "./page.js";
 import { plot } from "./plot.js";
-import { parseState } from "./state.js";
+import { metricOptions, parseState } from "./state.js";
 import { fingerprintMarkers } from "./transform.js";
 
 start(async () => {
@@ -34,7 +34,7 @@ start(async () => {
     render();
   };
   document.getElementById("controls").append(
-    select("Metric", index.metrics, state.metric, (v) => ((state.metric = v), rerender())),
+    select("Metric", metricOptions(index.metrics), state.metric, (v) => ((state.metric = v), rerender())),
     relToggle(state.rel, (v) => ((state.rel = v), rerender())),
   );
 

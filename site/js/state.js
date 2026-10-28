@@ -1,7 +1,22 @@
 // Page state lives in the URL query string, so every view is linkable.
 
 export const DEFAULT_PHASE = "execution";
-export const DEFAULT_METRIC = "virtual-cycles";
+
+/** The metrics worth looking at first; the dropdown floats them to the top. */
+export const FEATURED_METRICS = ["virtual-cycles", "instructions-retired"];
+export const DEFAULT_METRIC = FEATURED_METRICS[0];
+
+/**
+ * Order `metrics` for a dropdown: the featured ones first, then a `null`
+ * separator, then everything else alphabetically. The separator is left out
+ * when either group is empty.
+ */
+export function metricOptions(metrics) {
+  const featured = FEATURED_METRICS.filter((m) => metrics.includes(m));
+  const rest = metrics.filter((m) => !featured.includes(m)).sort();
+  if (featured.length === 0 || rest.length === 0) return [...featured, ...rest];
+  return [...featured, null, ...rest];
+}
 
 /**
  * Parse `search` (e.g. `location.search`) into state, validated against

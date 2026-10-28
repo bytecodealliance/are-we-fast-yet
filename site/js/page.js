@@ -24,12 +24,16 @@ export function replaceState(state) {
   history.replaceState(null, "", location.pathname + serializeState(state) + location.hash);
 }
 
-/** A `<select>` over `values`, labeled. */
+/** A `<select>` over `values`, labeled. A `null` value is a disabled separator. */
 export function select(label, values, current, onChange) {
   const s = el(
     "select",
     { "aria-label": label, onchange: (e) => onChange(e.target.value) },
-    values.map((v) => el("option", { value: v, selected: v === current }, v)),
+    values.map((v) =>
+      v === null
+        ? el("option", { disabled: true }, "\u2014\u2014\u2014")
+        : el("option", { value: v, selected: v === current }, v),
+    ),
   );
   return el("label", {}, `${label} `, s);
 }
