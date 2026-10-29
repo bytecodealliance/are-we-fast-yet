@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-10-29T18:27:20Z
+finished = 2026-10-29T20:59:21Z
+
+[wasmtime]
+commit = "70521b31b93cc0f1aa812261a3e31d27f2be57e5"
+commit-date = 2026-10-29T14:17:16Z
+
+[[wasmtime.commits]]
+commit = "70521b31b93cc0f1aa812261a3e31d27f2be57e5"
+subject = "ISLE verifier: reject rules whose RHS is ill-typed (#14964)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "da9611c14e755f2d34fc93b71700fd2b45674ffb"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40930847388"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
