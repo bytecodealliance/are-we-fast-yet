@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-30T15:22:20Z
+finished = 2026-10-30T17:49:32Z
+
+[wasmtime]
+commit = "22fd7f0f032f68c15fbb8c3c29e6f532f59b364c"
+commit-date = 2026-10-30T14:39:25Z
+
+[[wasmtime.commits]]
+commit = "22fd7f0f032f68c15fbb8c3c29e6f532f59b364c"
+subject = "Update webpki-root-certs and webpki-roots to 1.0.11 (#15084)"
+
+[[wasmtime.commits]]
+commit = "89ae0bac1cbcb7f2e8ba410cab5f522b7991841f"
+subject = "c-api: fix use-after-free in C++ copy assignment operators (#15085)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "a53a95512be5adf8c7856fa3101f65bf332ee568"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41079959392"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
