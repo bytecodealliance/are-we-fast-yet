@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-10-30T06:45:24Z
+finished = 2026-10-30T09:14:49Z
+
+[wasmtime]
+commit = "81231fd0c2058c5a84ad18d06f1ddaa934fb363c"
+commit-date = 2026-10-30T00:35:31Z
+
+[[wasmtime.commits]]
+commit = "81231fd0c2058c5a84ad18d06f1ddaa934fb363c"
+subject = "cranelift: aarch64: fix BTI landing pads for indirect control flow (#15072)"
+
+[[wasmtime.commits]]
+commit = "37b3c724ff6c7c7d4bdb625ae90b791c876bfc5a"
+subject = "Assert engines match in `StructType::with_finality_and_supertype` (#15078)"
+
+[[wasmtime.commits]]
+commit = "9e5af488845b9163abeb041ddb794edc3e3c4b4f"
+subject = "server: enforce the check-write permit for serve logs (#15060)"
+
+[[wasmtime.commits]]
+commit = "97bfc0aefc9bb055f4307800d5c55d7fcfd90ff9"
+subject = "Migrate more tests to `*.wast` (#15079)"
+
+[[wasmtime.commits]]
+commit = "75f84c5543d1cef710962106920f044b93ee0c46"
+subject = "component-model-async: Fix writes to DirectDestination (#15074)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "8421b7ec2cf6dcf76220592f466f67f4053cbbb2"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41014788466"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
