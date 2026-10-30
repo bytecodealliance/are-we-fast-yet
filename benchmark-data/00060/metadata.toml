@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-30T00:14:28Z
+finished = 2026-10-30T01:38:08Z
+
+[wasmtime]
+commit = "1818ef793fdcc80155c0a7eccab8b380a4cd28d3"
+commit-date = 2026-10-29T20:01:15Z
+
+[[wasmtime.commits]]
+commit = "1818ef793fdcc80155c0a7eccab8b380a4cd28d3"
+subject = "wasi-http: Clean up `run_http` test helper (#15041)"
+
+[[wasmtime.commits]]
+commit = "2a5abbef6132a62a864a92bd7279ec04caa6db3e"
+subject = "Remove `RuntimeMemoryCreator` and the proxy. (#15046)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "69d12a7fd5b7a78281e8d66b69a0c77e37e93cdb"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40972528903"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
