@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-10-30T01:40:06Z
+finished = 2026-10-30T04:11:17Z
+
+[wasmtime]
+commit = "9cfa762beac0431e2cfa9037fa7acf6ac3d23102"
+commit-date = 2026-10-29T20:52:52Z
+
+[[wasmtime.commits]]
+commit = "9cfa762beac0431e2cfa9037fa7acf6ac3d23102"
+subject = "Cranelift: fix two idempotent-store elimination bugs (#15073)"
+
+[[wasmtime.commits]]
+commit = "a4788b8676c9d08fa3a73e2790d512ed29ba6dc8"
+subject = "Track memory of self-borrow handles too (#15075)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "50f84b8657ee5dda59dca886d4e9e955ec92e0e4"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/40985598695"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
