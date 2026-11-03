@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-11-03T18:59:23Z
+finished = 2026-11-03T21:26:45Z
+
+[wasmtime]
+commit = "b112f2f24a58492c45cd958c2a8aa986df9e0634"
+commit-date = 2026-11-03T17:33:42Z
+
+[[wasmtime.commits]]
+commit = "b112f2f24a58492c45cd958c2a8aa986df9e0634"
+subject = "Remove differential fuzzing with the spec interpreter (#15122)"
+
+[[wasmtime.commits]]
+commit = "4c36d38771842a9c55f911a1b2d0939534ee0492"
+subject = 'Cut down on "min" builds in CI (#15127)'
+
+[[wasmtime.commits]]
+commit = "e41a236daa358b009e86bae1b9c5ef73d349c270"
+subject = "Reduce testing of x86_64 macOS in CI (#15126)"
+
+[[wasmtime.commits]]
+commit = "9efaf66e12182ea634ef45cccdc36f5e02c87917"
+subject = "Try to remove the need for a PAT in CI (#15123)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "968ed4d4120537c182cc3b3f01b2136a4e58d53f"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41693132754"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
