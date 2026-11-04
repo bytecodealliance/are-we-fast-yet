@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-11-04T16:21:35Z
+finished = 2026-11-04T18:48:55Z
+
+[wasmtime]
+commit = "4082155781a037055f157c76699f7e152f455b35"
+commit-date = 2026-11-04T15:21:13Z
+
+[[wasmtime.commits]]
+commit = "4082155781a037055f157c76699f7e152f455b35"
+subject = "Move the one-off `fuel.wast` test to normal wast testing (#15138)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "1b2738786927fc4dbfba1349849ccb9a9271a4a9"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41866299989"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
