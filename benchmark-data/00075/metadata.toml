@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-11-04T18:51:05Z
+finished = 2026-11-04T21:19:20Z
+
+[wasmtime]
+commit = "945c1f03a08fde1362ccab848c2397d0682c247a"
+commit-date = 2026-11-04T17:13:48Z
+
+[[wasmtime.commits]]
+commit = "945c1f03a08fde1362ccab848c2397d0682c247a"
+subject = "Migrate more fuel-using tests to `*.wast` (#15146)"
+
+[[wasmtime.commits]]
+commit = "546c33f171278b8c51470126a2ffbc0cf8bd880a"
+subject = "Expose the `LinearMemory` instance from the store. (#15144)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "ffadbbf14273acdbc885592fa49dd45ef57c7da1"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41886545126"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
