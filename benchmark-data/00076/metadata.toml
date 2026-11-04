@@ -1,0 +1,39 @@
+schema = 1
+started = 2026-11-04T21:21:30Z
+finished = 2026-11-04T23:50:01Z
+
+[wasmtime]
+commit = "8012995c2f408b4ca422250303f91a85da09c058"
+commit-date = 2026-11-04T20:00:20Z
+
+[[wasmtime.commits]]
+commit = "8012995c2f408b4ca422250303f91a85da09c058"
+subject = "Fixed propagating CARGO_TARGET_DIR to cargo build in c-api CMake (#15150)"
+
+[[wasmtime.commits]]
+commit = "1c8a1fa4e0e5a24676a09e07257056f7897fccc6"
+subject = "Don't embed `$OUT_DIR` in proc macros (#15149)"
+
+[[wasmtime.commits]]
+commit = "160593b8feb37e251d74164777cd0ce19a6c1822"
+subject = "Fix return code of cancelled stream reads/writes (#14953)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "28108aa144615c8cbb7a000058e29bf519aa59f9"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41905693515"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
