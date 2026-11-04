@@ -1,0 +1,63 @@
+schema = 1
+started = 2026-11-03T21:31:12Z
+finished = 2026-11-04T00:03:09Z
+
+[wasmtime]
+commit = "73bebe52c7828c873c2714a6e006e1fdf3b8a72f"
+commit-date = 2026-11-03T20:25:52Z
+
+[[wasmtime.commits]]
+commit = "73bebe52c7828c873c2714a6e006e1fdf3b8a72f"
+subject = "Bump minimum limits for wast tests (#15106)"
+
+[[wasmtime.commits]]
+commit = "458eead5366a056cd170c4fc962acdaf88f377b5"
+subject = "Remove `HeapType::ConcreteExn` from the public API (#15099)"
+
+[[wasmtime.commits]]
+commit = "d63b33df37d18e8ba303fb6000c4460ba1548eb4"
+subject = "Unconditionally limit array lengths in fuzzing (#15107)"
+
+[[wasmtime.commits]]
+commit = "235cede1fe7d6a3084d9ee8aeb0ecf3afab514d4"
+subject = "Add configuration for buffer sizes in WASI (#15095)"
+
+[[wasmtime.commits]]
+commit = "c3a3052eab8c9ed655589e61d66d5d5c6a761092"
+subject = "Add Rust updates to dependabot (#15100)"
+
+[[wasmtime.commits]]
+commit = "3cfc2d68da8e1f92087c886eda92da250dcccf2d"
+subject = "Fix panics compiling module imports with `rec` groups (#15125)"
+
+[[wasmtime.commits]]
+commit = "623307801370a4b8f3f5a13adf9a434a1f10bb23"
+subject = "fix `cranelift_codegen` not compiling s390x backend with `no_std` (#15131)"
+
+[[wasmtime.commits]]
+commit = "03237cf3bd80a4e130dc8349b264fab96b740700"
+subject = "Fix pagemap scan tests and implementation (#15134)"
+
+[[wasmtime.commits]]
+commit = "11722fb6adcb6d4020af4caa633d15c7ceb3b27b"
+subject = "Fix some more mistakes in the C++ API (#15098)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "dd73c9abd20432093f1327995da274ef7691c80f"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41721009491"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
