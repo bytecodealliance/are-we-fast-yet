@@ -1,0 +1,67 @@
+schema = 1
+started = 2026-11-04T00:05:24Z
+finished = 2026-11-04T02:34:53Z
+
+[wasmtime]
+commit = "9959c2c6e2d9a5c42be8b5adaea88b072089502f"
+commit-date = 2026-11-03T23:23:44Z
+
+[[wasmtime.commits]]
+commit = "9959c2c6e2d9a5c42be8b5adaea88b072089502f"
+subject = "Try to fix merge-artifacts.sh (#15135)"
+
+[[wasmtime.commits]]
+commit = "d0202d6c7b074735d0a16863cd50a99c23a5ce29"
+subject = "ISLE verifier: update GitHub cache from `publish-artifacts` workflow as well. (#15083)"
+
+[[wasmtime.commits]]
+commit = "e9b470e6d77022f910862af7948b4c896bdcb017"
+subject = "[stack-switching] Stack initialisation checks. (#15110)"
+
+[[wasmtime.commits]]
+commit = "1fcb10cad0c0cbb30e189f233d38c5ef5699963a"
+subject = "Bump actions/configure-pages from 5 to 6 (#15137)"
+
+[[wasmtime.commits]]
+commit = "d698ecb592e552f10225d38c3bd71b928429516a"
+subject = "Migrate core wasm tests to `*.wast` (#15090)"
+
+[[wasmtime.commits]]
+commit = "65547dee21296c63298d78d100729605e931c1d3"
+subject = "Cranelift: add mid-end opt rules (#14896)"
+
+[[wasmtime.commits]]
+commit = "b0821bb26e2f87f3107b9f0ce125f4d51175691d"
+subject = "Document some more aborts/panics in the API (#15096)"
+
+[[wasmtime.commits]]
+commit = "2632f13f8016b660a74cfb2ffcc4e217b8ed7881"
+subject = "Document that fuel is not precise on traps (#15091)"
+
+[[wasmtime.commits]]
+commit = "161660c70cbf4934cb07a9b263646ead4287082e"
+subject = "Add more fixmes for memory64 integration (#15089)"
+
+[[wasmtime.commits]]
+commit = "16963b709160573d2f6d20e62e6d8cd23e439aaf"
+subject = "Cranelift: opt: faster e-graph controlling type lookup (#15102)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "4070b42593b88e45393df6ab5ebf3ae9a1410439"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/41738405966"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm48cm3 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "INTEL(R) XEON(R) PLATINUM 8573C"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
