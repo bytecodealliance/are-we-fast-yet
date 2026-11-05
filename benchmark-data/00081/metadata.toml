@@ -1,0 +1,35 @@
+schema = 1
+started = 2026-11-05T19:16:26Z
+finished = 2026-11-05T21:04:00Z
+
+[wasmtime]
+commit = "753af035600baae51f75ac0d239a37bac2638fd1"
+commit-date = 2026-11-05T18:08:05Z
+
+[[wasmtime.commits]]
+commit = "753af035600baae51f75ac0d239a37bac2638fd1"
+subject = "Add flags needed to gate MMU interruption. (#14929)"
+
+[[wasmtime.commits]]
+commit = "f5adb315526108f1b4319ff2d0ecbc7be45d378a"
+subject = "Update component-model and core wasm spec test suites (#15157)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "876c0a23a1afe3bc9863eb150c5ee908a491dc8a"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42083795518"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
