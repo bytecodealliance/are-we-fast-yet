@@ -1,0 +1,51 @@
+schema = 1
+started = 2026-11-05T22:21:32Z
+finished = 2026-11-05T23:45:12Z
+
+[wasmtime]
+commit = "6049b81e0356b7e63a807ee0964cb0a2e3c2a41e"
+commit-date = 2026-11-05T21:45:42Z
+
+[[wasmtime.commits]]
+commit = "6049b81e0356b7e63a807ee0964cb0a2e3c2a41e"
+subject = "cranelift: Group blocks belonging to the same loop together during lowering (#15161)"
+
+[[wasmtime.commits]]
+commit = "8f967ff7edd11ee3452990288486bde766923915"
+subject = "cranelift: x64: implement packed signed saturating addition - #3295 (#15158)"
+
+[[wasmtime.commits]]
+commit = "17fe5e6c78a977ad3d161b88e190fb6a9ebde27b"
+subject = "Evaluate trapping active element segments before table writes (#15130)"
+
+[[wasmtime.commits]]
+commit = "55a53219ee40510a004bd93f4a901eb1329a5c5f"
+subject = "cranelift-entity: remove unused `get_raw_mut` and `into_boxed_slice` (#15159)"
+
+[[wasmtime.commits]]
+commit = "c0459152dde81b034ccaa88262a7bbd7cb498ba8"
+subject = "cranelift: avoid scratch register clobber in large-offset address materialization (#15108)"
+
+[[wasmtime.commits]]
+commit = "bd3a789abc0ca81f00fbd7c15bbb3e557848e4b4"
+subject = "Support arbitrary CLI flags in `*.wast` tests (#15152)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "ff90f79b679c33d2ac879244f1a1ec739874e3b8"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42120691141"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
