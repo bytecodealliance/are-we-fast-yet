@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-11-05T14:22:28Z
+finished = 2026-11-05T16:47:35Z
+
+[wasmtime]
+commit = "7845edc6d784b72d89e792543435014a93faced8"
+commit-date = 2026-11-05T13:48:24Z
+
+[[wasmtime.commits]]
+commit = "7845edc6d784b72d89e792543435014a93faced8"
+subject = "Implement PIC for s390x (#14772)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "278e0297830c4db5665bdebf59c6f6b05df85623"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42044270910"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
