@@ -199,6 +199,7 @@ jobs:
             {
               echo "found=true"
               echo "repo=$repo"
+              echo "labels=$(target/release/awfy config regressions.issue-labels)"
               echo "owner=${repo%%/*}"
               echo "name=${repo#*/}"
               echo "key=$(target/release/awfy issue-key --run "$RUN")"
@@ -233,6 +234,7 @@ jobs:
           GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
           REPO: ${{ steps.regressions.outputs.repo }}
           KEY: ${{ steps.regressions.outputs.key }}
+          LABELS: ${{ steps.regressions.outputs.labels }}
         run: |
           # Idempotency: skip if a re-run already filed this run's issue.
           existing=$(gh issue list --repo "$REPO" --state all --search "\"$KEY\" in:title" \
@@ -244,7 +246,8 @@ jobs:
           fi
           gh issue create --repo "$REPO" \
             --title "$(cat "$RUNNER_TEMP/issue/title.txt")" \
-            --body-file "$RUNNER_TEMP/issue/body.md"
+            --body-file "$RUNNER_TEMP/issue/body.md" \
+            ${LABELS:+--label "$LABELS"}
 
   pages:
     needs: benchmark

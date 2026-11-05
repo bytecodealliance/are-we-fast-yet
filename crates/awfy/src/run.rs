@@ -444,6 +444,7 @@ mod tests {
             [regressions]
             significance-level = 0.01
             issue-repo = "a/b"
+            issue-labels = ""
             [regressions.min-relative-change.compilation]
             geomean = 0.002
             individual = 0.01

@@ -39,6 +39,9 @@ pub struct Regressions {
     pub min_relative_change: MinRelativeChange,
     /// `owner/name` of the repository regression issues are filed on.
     issue_repo: String,
+    /// Comma-separated labels for regression issues, as `gh issue create
+    /// --label` takes them.
+    issue_labels: String,
 }
 
 /// The minimum relative change to be considered significant, per phase.
@@ -141,6 +144,10 @@ mod tests {
             get(&root, "regressions.issue-repo").unwrap(),
             "bytecodealliance/are-we-fast-yet"
         );
+        assert_eq!(
+            get(&root, "regressions.issue-labels").unwrap(),
+            "performance,awfy"
+        );
         assert_eq!(get(&root, "benchmark.iterations").unwrap(), "6");
         assert_eq!(
             get(
@@ -179,6 +186,7 @@ mod tests {
             [regressions]
             significance-level = 0.01
             issue-repo = "a/b"
+            issue-labels = ""
             [regressions.min-relative-change.compilation]
             geomean = 0.002
             individual = 0.01
@@ -207,6 +215,7 @@ mod tests {
             [regressions]
             significance-level = 0.01
             issue-repo = "a/b"
+            issue-labels = ""
             [regressions.min-relative-change.compilation]
             geomean = 0.002
             individual = 0.01
