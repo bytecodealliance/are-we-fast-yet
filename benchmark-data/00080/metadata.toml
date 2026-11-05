@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-11-05T16:49:50Z
+finished = 2026-11-05T19:14:15Z
+
+[wasmtime]
+commit = "c4ce4993c5cab36a0b1445a6e83d7f7dd24745ce"
+commit-date = 2026-11-05T15:39:39Z
+
+[[wasmtime.commits]]
+commit = "c4ce4993c5cab36a0b1445a6e83d7f7dd24745ce"
+subject = "Move handle-table slots into `for_each_vm_type!` (#15153)"
+
+[[wasmtime.commits]]
+commit = "ccbf10f5c67739ddf492f6e2352b02e90d48d556"
+subject = "Remove manual `gh workflow run` on release-related PRs (#15162)"
+
+[[wasmtime.commits]]
+commit = "e5efed4fc95a1c0857dfb393aa1c5c15a5682d0d"
+subject = "Remove more traces of spec interpreter fuzzing (#15164)"
+
+[[wasmtime.commits]]
+commit = "59b88865b790d55fa1965bea094cfef563f35336"
+subject = "no_std CI checks (#15163)"
+
+[[wasmtime.commits]]
+commit = "9cb229e5ce6bf76b3d10ef545e72b6195276d44c"
+subject = "[stack-switching] C API (#15148)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "46ebdd9d478a08d62bf7ea55626730520c3b4f15"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42064022533"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
