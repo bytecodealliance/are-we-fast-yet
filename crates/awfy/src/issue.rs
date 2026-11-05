@@ -2,21 +2,15 @@
 //! `docs/regressions.md` ("Issue").
 
 use crate::config::Config;
-use crate::git::{GitLog, Repo};
+use crate::git::Commit;
+use crate::markdown::{self, short};
 use crate::metadata::Metadata;
-use crate::regressions::{Report, VIRTUAL_CYCLES, short};
+use crate::regressions::Report;
 use crate::runs::RunNumber;
-use crate::slug::slug;
 use anyhow::Result;
 use sightglass_analysis::geomean::GEOMEAN;
 use std::fmt::Write as _;
 use std::path::Path;
-
-/// The Wasmtime repository URL on github.
-const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
-
-/// Most commits listed in the body.
-const MAX_COMMITS: usize = 50;
 
 /// An issue to be created.
 struct Issue {
@@ -32,17 +26,17 @@ pub fn issue_key(run: RunNumber) -> String {
     format!("(are-we-fast-yet run {run})")
 }
 
-/// Render the issue, or `None` if there are no regressions.
+/// Render the issue, or `None` if there are no regressions. Speedups alone
+/// never file one, but are listed beside the regressions they came with.
 fn render(
     report: &Report,
     metadata: &Metadata,
     config: &Config,
-    git: Option<&dyn GitLog>,
+    log: Option<&[Commit]>,
 ) -> Result<Option<Issue>> {
     if report.regressions.is_empty() {
         return Ok(None);
     }
-    let site = &config.site.base_url;
     let (old, new) = (&report.baseline_commit, &report.commit);
     let title = format!(
         "Performance regression in {}..{} {}",
@@ -52,123 +46,33 @@ fn render(
     );
 
     let mut b = String::new();
-    let run_link = |run: RunNumber| {
+    let speedups = if report.speedups.is_empty() {
+        String::new()
+    } else {
         format!(
-            "[run {run}]({site}run.html?run={run}) ([metadata](https://github.com/{}/blob/main/benchmark-data/{run}/metadata.toml))",
-            config.site.repo
+            " and {}",
+            plural(report.speedups.len(), "speedup", "speedups")
         )
     };
     writeln!(
         b,
-        "[are-we-fast-yet](https://github.com/{}) found {} in virtual cycles \
-         (callgrind) between Wasmtime `{}` and `{}`.\n",
+        "[are-we-fast-yet](https://github.com/{}) found {}{speedups} in virtual \
+         cycles (callgrind) between Wasmtime `{}` and `{}`.\n",
         config.site.repo,
         plural(report.regressions.len(), "regression", "regressions"),
         short(old),
         short(new),
     )?;
-    writeln!(b, "* Baseline: {}", run_link(report.baseline))?;
-    writeln!(b, "* This run: {}", run_link(report.run))?;
-    writeln!(
-        b,
-        "* Threshold: significant at the {} level, and at least this much more:\n",
-        report.significance_level
-    )?;
-    crate::regressions::threshold_table(&mut b, &report.min_relative_change);
-
-    writeln!(b, "| benchmark | phase |{}", crate::regressions::HEADER)?;
-    writeln!(b, "|-----------|-------|{}", crate::regressions::RULE)?;
-    for c in &report.regressions {
-        writeln!(
-            b,
-            "| [`{}`]({site}benchmark.html?b={}&metric={VIRTUAL_CYCLES}) | {} | **{}** | {} | {} | {} |",
-            c.benchmark,
-            slug(&c.benchmark),
-            c.phase,
-            crate::regressions::delta(c),
-            crate::regressions::noise(c),
-            crate::regressions::instructions(c),
-            crate::regressions::instructions_noise(c),
-        )?;
+    markdown::runs(&mut b, report, config)?;
+    markdown::change_table(&mut b, config, "Regressions", &report.regressions)?;
+    if !report.speedups.is_empty() {
+        markdown::change_table(&mut b, config, "Speedups", &report.speedups)?;
     }
-    writeln!(b)?;
-    writeln!(
-        b,
-        "A positive delta is a slowdown, a negative delta is a speedup.\n\
-         \n\
-         `instructions retired` counts work done rather than how well it was \
-         predicted. A regression whose instructions didn't move is often \
-         Valgrind's branch predictors aliasing on a code layout change; see \
-         [`docs/regressions.md`](https://github.com/{}/blob/main/docs/regressions.md).\n\
-         \n\
-         Each noise column is how far that event's own counts spread.\n",
-        config.site.repo
-    )?;
-
-    if !report.other_counters.is_empty() {
-        writeln!(b, "<details>")?;
-        writeln!(
-            b,
-            "<summary>Other callgrind counters that changed for these benchmarks</summary>\n"
-        )?;
-        writeln!(b, "| benchmark | phase | counter | Δ | noise |")?;
-        writeln!(b, "|-----------|-------|---------|---|-------|")?;
-        for c in &report.other_counters {
-            writeln!(
-                b,
-                "| `{}` | {} | `{}` | {} | {} |",
-                c.benchmark,
-                c.phase,
-                c.event,
-                crate::regressions::delta(c),
-                crate::regressions::noise(c),
-            )?;
-        }
-        writeln!(b, "\n</details>\n")?;
-    }
-
-    writeln!(b, "### Commits\n")?;
-    writeln!(b, "{WASMTIME_REPO}/compare/{old}...{new}\n")?;
-    if let Some(git) = git {
-        let commits = git.log(old, new)?;
-        for c in commits.iter().take(MAX_COMMITS) {
-            writeln!(
-                b,
-                "* [`{}` {}]({WASMTIME_REPO}/commit/{})",
-                short(&c.commit),
-                escape(&c.subject),
-                c.commit
-            )?;
-        }
-        if commits.len() > MAX_COMMITS {
-            writeln!(b, "* ... and {} more", commits.len() - MAX_COMMITS)?;
-        }
-        writeln!(b)?;
-    }
-
+    markdown::notes(&mut b, config)?;
+    markdown::other_counters(&mut b, &report.other_counters)?;
+    markdown::commits(&mut b, old, new, log)?;
     reproduce(&mut b, report, metadata)?;
     Ok(Some(Issue { title, body: b }))
-}
-
-/// Escape a commit subject for a Markdown link's text. Brackets end the link
-/// early and a backslash escapes whatever follows, so those are
-/// backslash-escaped. GitHub also renders raw HTML, which would otherwise
-/// swallow the type parameter in a subject like `Box<dyn Error>`.
-fn escape(subject: &str) -> String {
-    let mut out = String::with_capacity(subject.len());
-    for c in subject.chars() {
-        match c {
-            '&' => out.push_str("&amp;"),
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '[' | ']' | '\\' => {
-                out.push('\\');
-                out.push(c);
-            }
-            _ => out.push(c),
-        }
-    }
-    out
 }
 
 fn reproduce(b: &mut String, report: &Report, metadata: &Metadata) -> Result<()> {
@@ -227,17 +131,16 @@ fn plural(n: usize, one: &str, many: &str) -> String {
     format!("{n} {}", if n == 1 { one } else { many })
 }
 
-/// Write `title.txt` and `body.md` to `dir` if there are regressions.
+/// Write `title.txt` and `body.md` to `dir` if there are regressions. `log` is
+/// the Wasmtime commits between the two runs, if known.
 pub fn write(
     dir: &Path,
     report: &Report,
     metadata: &Metadata,
     config: &Config,
-    wasmtime_repo: Option<&Path>,
+    log: Option<&[Commit]>,
 ) -> Result<bool> {
-    let repo = wasmtime_repo.map(Repo::new);
-    let git = repo.as_ref().map(|r| r as &dyn GitLog);
-    let Some(issue) = render(report, metadata, config, git)? else {
+    let Some(issue) = render(report, metadata, config, log)? else {
         return Ok(false);
     };
     std::fs::create_dir_all(dir)?;
@@ -249,8 +152,7 @@ pub fn write(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::git::Commit;
-    use crate::regressions::{Change, Outcome, compare};
+    use crate::regressions::{Change, Outcome, VIRTUAL_CYCLES, compare};
     use crate::runs::DataDir;
     use crate::snapshot::assert_snapshot;
     use sightglass_data::Phase;
@@ -284,18 +186,14 @@ mod tests {
     ];
 
     /// `n` commits, newest first.
-    struct FakeGit(usize);
-
-    impl GitLog for FakeGit {
-        fn log(&self, _old: &str, _new: &str) -> Result<Vec<Commit>> {
-            Ok((0..self.0)
-                .rev()
-                .map(|i| Commit {
-                    commit: format!("{:x}{}", 0xabc0000 + i, "f".repeat(33)),
-                    subject: SUBJECTS[i % SUBJECTS.len()].to_string(),
-                })
-                .collect())
-        }
+    fn fake_log(n: usize) -> Vec<Commit> {
+        (0..n)
+            .rev()
+            .map(|i| Commit {
+                commit: format!("{:x}{}", 0xabc0000 + i, "f".repeat(33)),
+                subject: SUBJECTS[i % SUBJECTS.len()].to_string(),
+            })
+            .collect()
     }
 
     fn change(benchmark: &str, phase: Phase, event: &str, old: f64, new: f64) -> Change {
@@ -322,8 +220,8 @@ mod tests {
         }
     }
 
-    fn render_snapshot(name: &str, report: &Report, metadata: &Metadata, git: Option<&dyn GitLog>) {
-        let issue = render(report, metadata, &config(), git).unwrap().unwrap();
+    fn render_snapshot(name: &str, report: &Report, metadata: &Metadata, log: Option<&[Commit]>) {
+        let issue = render(report, metadata, &config(), log).unwrap().unwrap();
         assert_snapshot(
             &format!("issue/{name}.md"),
             &format!("{}\n\n{}", issue.title, issue.body),
@@ -350,7 +248,7 @@ mod tests {
     #[test]
     fn one_regression() {
         let (report, metadata) = fixture_report();
-        render_snapshot("one", &report, &metadata, Some(&FakeGit(3)));
+        render_snapshot("one", &report, &metadata, Some(&fake_log(3)));
     }
 
     #[test]
@@ -402,7 +300,17 @@ mod tests {
                 0.9e5,
             ),
         ];
-        render_snapshot("many", &report, &metadata, Some(&FakeGit(60)));
+        report.speedups = vec![
+            change(GEOMEAN, Phase::Compilation, VIRTUAL_CYCLES, 1e9, 0.97e9),
+            change(
+                "pulldown-cmark/benchmark.wasm",
+                Phase::Compilation,
+                VIRTUAL_CYCLES,
+                2e8,
+                1.9e8,
+            ),
+        ];
+        render_snapshot("many", &report, &metadata, Some(&fake_log(60)));
     }
 
     #[test]
@@ -415,24 +323,20 @@ mod tests {
             1e6,
             1.012e6,
         )];
+        report.speedups.clear();
         report.other_counters.clear();
-        render_snapshot("geomean", &report, &metadata, Some(&FakeGit(1)));
+        render_snapshot("geomean", &report, &metadata, Some(&fake_log(1)));
     }
 
     /// A subject is arbitrary text, so it must not break out of the link.
     #[test]
     fn commit_subjects_are_escaped() {
-        struct Tricky;
-        impl GitLog for Tricky {
-            fn log(&self, _old: &str, _new: &str) -> Result<Vec<Commit>> {
-                Ok(vec![Commit {
-                    commit: "a".repeat(40),
-                    subject: r"Return Box<dyn Error> & fix [brackets](x) and \backslashes".into(),
-                }])
-            }
-        }
+        let log = [Commit {
+            commit: "a".repeat(40),
+            subject: r"Return Box<dyn Error> & fix [brackets](x) and \backslashes".into(),
+        }];
         let (report, metadata) = fixture_report();
-        let issue = render(&report, &metadata, &config(), Some(&Tricky))
+        let issue = render(&report, &metadata, &config(), Some(&log))
             .unwrap()
             .unwrap();
         assert!(
@@ -445,10 +349,12 @@ mod tests {
         );
     }
 
+    /// Speedups alone never file an issue.
     #[test]
     fn no_regressions() {
         let (mut report, metadata) = fixture_report();
         report.regressions.clear();
+        assert!(!report.speedups.is_empty());
         assert!(
             render(&report, &metadata, &config(), None)
                 .unwrap()

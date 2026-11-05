@@ -41,6 +41,8 @@ fn regressions_writes_summary_and_issue() {
     let summary = std::fs::read_to_string(&summary).unwrap();
     assert!(summary.starts_with("earlier step\n## Regressions: run 00002 vs. 00001\n"));
     assert!(summary.contains("## Regressions: run 00003 vs. 00002\n"));
+    assert!(summary.contains("benchmark.html?b=bz2-benchmark&metric=virtual-cycles"));
+    assert!(summary.contains("https://github.com/bytecodealliance/wasmtime/compare/"));
 }
 
 #[test]

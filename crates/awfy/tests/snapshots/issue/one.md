@@ -1,10 +1,11 @@
 Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 
-[are-we-fast-yet](https://github.com/bytecodealliance/are-we-fast-yet) found 2 regressions in virtual cycles (callgrind) between Wasmtime `222222222222` and `333333333333`.
+[are-we-fast-yet](https://github.com/bytecodealliance/are-we-fast-yet) found 2 regressions and 1 speedup in virtual cycles (callgrind) between Wasmtime `222222222222` and `333333333333`.
 
-* Baseline: [run 00002](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00002) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00002/metadata.toml))
-* This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml))
-* Threshold: significant at the 0.01 level, and at least this much more:
+* Baseline: [run 00002](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00002) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00002/metadata.toml)), Wasmtime `222222222222`
+* This run: [run 00003](https://bytecodealliance.github.io/are-we-fast-yet/run.html?run=00003) ([metadata](https://github.com/bytecodealliance/are-we-fast-yet/blob/main/benchmark-data/00003/metadata.toml)), Wasmtime `333333333333`
+
+A change counts when a Mann-Whitney U test finds it significant at the `0.01` level and it clears its phase's minimum relative change:
 
 | phase | geomean | individual |
 |-------|---------|------------|
@@ -12,10 +13,18 @@ Performance regression in 222222222222..333333333333 (are-we-fast-yet run 00003)
 | instantiation | 2% | 5% |
 | execution | 0.2% | 1% |
 
+### Regressions (2)
+
 | benchmark | phase | **Δ virtual cycles** | virtual cycles noise | Δ instructions retired | instructions retired noise |
 |-----------|-------|----------------------|----------------------|------------------------|----------------------------|
 | [`Geomean`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=Geomean&metric=virtual-cycles) | execution | **+0.75% (+0.74% to +0.76%)** | n/a | n/a | n/a |
 | [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | execution | **+1.50% (+1.48% to +1.52%)** | 0.020% -> 0.020% | +1.20% | 0.020% -> 0.020% |
+
+### Speedups (1)
+
+| benchmark | phase | **Δ virtual cycles** | virtual cycles noise | Δ instructions retired | instructions retired noise |
+|-----------|-------|----------------------|----------------------|------------------------|----------------------------|
+| [`bz2/benchmark.wasm`](https://bytecodealliance.github.io/are-we-fast-yet/benchmark.html?b=bz2-benchmark&metric=virtual-cycles) | compilation | **-3.00% (-3.01% to -2.99%)** | 0.020% -> 0.019% | +0.00% | 0.020% -> 0.020% |
 
 A positive delta is a slowdown, a negative delta is a speedup.
 

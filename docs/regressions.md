@@ -6,8 +6,9 @@ Wasmtime commit is unchanged.
 
 A (benchmark, phase) regresses when its virtual cycles change is both
 statistically significant and at least `min-relative-change`, and does not
-carry the branch-aliasing signature below. Speedups and suppressed regressions
-appear in the job summary but never file issues.
+carry the branch-aliasing signature below. Speedups never file issues on their
+own, but are listed in a regression's issue. Suppressed regressions appear only
+in the job summary.
 
 ## Thresholds
 
@@ -69,8 +70,8 @@ The title ends in `(are-we-fast-yet run NNNNN)`, which is the idempotency key:
 the workflow files nothing if an issue with that suffix exists. A regression is
 reported once; later runs compare against the regressed baseline.
 
-The regressions table, in the issue body and in the job summary alongside the
-speedups table, reports each change as a signed percent with its confidence
+The issue body and the job summary share their run links, regressions and
+speedups tables, and Wasmtime commit links. Each table reports each change as a signed percent with its confidence
 interval, in four columns: the virtual cycles a change is filed on, then
 `instructions-retired`, each followed by that event's own noise.
 

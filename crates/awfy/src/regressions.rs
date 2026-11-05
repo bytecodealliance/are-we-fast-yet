@@ -3,6 +3,8 @@
 
 use crate::config::{Config, MinRelativeChange};
 use crate::fingerprint::Fingerprint;
+use crate::git::{Commit, GitLog, Repo};
+use crate::markdown;
 use crate::metadata::Metadata;
 use crate::runs::{DataDir, RunNumber};
 use anyhow::{Context, Result};
@@ -119,7 +121,7 @@ pub struct Report {
     /// Regressions held back by the branch-aliasing rule, in the same order.
     pub suppressed: Vec<Suppressed>,
     /// Virtual-cycles speedups, in the same order.
-    speedups: Vec<Change>,
+    pub speedups: Vec<Change>,
     /// Other events that changed for the regressed (benchmark, phase) pairs,
     /// in the same order.
     pub other_counters: Vec<Change>,
@@ -341,8 +343,14 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
     let config = Config::load(root)?;
     let data = DataDir::new(root);
     let outcome = compare(&data, &config, options.run)?;
+    let log = match (&outcome, &options.wasmtime_repo) {
+        (Outcome::Compared(r), Some(repo)) => {
+            Some(Repo::new(repo).log(&r.baseline_commit, &r.commit)?)
+        }
+        _ => None,
+    };
 
-    let summary = summary(&outcome);
+    let summary = summary(&outcome, &config, log.as_deref());
     match &options.summary {
         Some(path) => {
             use std::io::Write;
@@ -357,13 +365,7 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
     }
     if let (Some(dir), Outcome::Compared(report)) = (&options.issue_dir, &outcome) {
         let metadata = data.metadata(report.run)?;
-        let wrote = crate::issue::write(
-            dir,
-            report,
-            &metadata,
-            &config,
-            options.wasmtime_repo.as_deref(),
-        )?;
+        let wrote = crate::issue::write(dir, report, &metadata, &config, log.as_deref())?;
         if wrote {
             log::info!("wrote issue to {}", dir.display());
         }
@@ -557,8 +559,9 @@ fn compare_measurements(
     })
 }
 
-/// The Markdown job summary.
-fn summary(outcome: &Outcome) -> String {
+/// The Markdown job summary. `log` is the Wasmtime commits between the two
+/// runs, if known.
+fn summary(outcome: &Outcome, config: &Config, log: Option<&[Commit]>) -> String {
     let mut s = String::new();
     match outcome {
         Outcome::Skipped {
@@ -575,21 +578,14 @@ fn summary(outcome: &Outcome) -> String {
         }
         Outcome::Compared(r) => {
             writeln!(s, "## Regressions: run {} vs. {}\n", r.run, r.baseline).unwrap();
-            writeln!(
-                s,
-                "Wasmtime `{}`..`{}`.\n\n\
-                 A change counts when a Mann-Whitney U test finds it \
-                 significant at the `{}` level and it clears its phase's \
-                 minimum relative change:\n",
-                short(&r.baseline_commit),
-                short(&r.commit),
-                r.significance_level,
-            )
-            .unwrap();
-            threshold_table(&mut s, &r.min_relative_change);
-            change_table(&mut s, "Regressions", &r.regressions);
-            suppressed_table(&mut s, &r.suppressed);
-            change_table(&mut s, "Speedups", &r.speedups);
+            markdown::runs(&mut s, r, config).unwrap();
+            markdown::change_table(&mut s, config, "Regressions", &r.regressions).unwrap();
+            markdown::suppressed_table(&mut s, &r.suppressed).unwrap();
+            markdown::change_table(&mut s, config, "Speedups", &r.speedups).unwrap();
+            if !r.regressions.is_empty() || !r.speedups.is_empty() {
+                markdown::notes(&mut s, config).unwrap();
+            }
+            markdown::other_counters(&mut s, &r.other_counters).unwrap();
             if !r.skipped_benchmarks.is_empty() {
                 writeln!(s, "### Skipped benchmarks\n").unwrap();
                 for (b, why) in &r.skipped_benchmarks {
@@ -597,177 +593,10 @@ fn summary(outcome: &Outcome) -> String {
                 }
                 writeln!(s).unwrap();
             }
+            markdown::commits(&mut s, &r.baseline_commit, &r.commit, log).unwrap();
         }
     }
     s
-}
-
-/// The thresholds a change had to clear, as a Markdown table.
-pub fn threshold_table(s: &mut String, min: &MinRelativeChange) {
-    writeln!(s, "| phase | geomean | individual |").unwrap();
-    writeln!(s, "|-------|---------|------------|").unwrap();
-    for (phase, t) in min.phases() {
-        writeln!(
-            s,
-            "| {phase} | {} | {} |",
-            percent(t.geomean),
-            percent(t.individual)
-        )
-        .unwrap();
-    }
-    writeln!(s).unwrap();
-}
-
-/// The job summary is the only place suppressions are visible, so each one
-/// shows the numbers that justify it.
-fn suppressed_table(s: &mut String, suppressed: &[Suppressed]) {
-    if suppressed.is_empty() {
-        return;
-    }
-    writeln!(s, "### Suppressed ({})\n", suppressed.len()).unwrap();
-    writeln!(
-        s,
-        "Virtual cycles moved, but the delta is branch misses alone and the \
-         instruction count held still. That is Valgrind's branch predictors \
-         aliasing on a code layout change, not a regression; see \
-         `docs/regressions.md`.\n"
-    )
-    .unwrap();
-    writeln!(
-        s,
-        "| benchmark | phase | change | branch-miss share | instructions |"
-    )
-    .unwrap();
-    writeln!(
-        s,
-        "|-----------|-------|--------|-------------------|--------------|"
-    )
-    .unwrap();
-    for x in suppressed {
-        writeln!(
-            s,
-            "| `{}` | {} | {} ({}) | {:.1}% | {} |",
-            x.change.benchmark,
-            x.change.phase,
-            signed_percent(x.change.relative_change),
-            interval(&x.change),
-            x.branch_miss_share * 100.0,
-            signed_percent(x.instructions_change),
-        )
-        .unwrap();
-    }
-    writeln!(s).unwrap();
-}
-
-fn change_table(s: &mut String, title: &str, changes: &[Change]) {
-    if changes.is_empty() {
-        writeln!(s, "### {title}\n").unwrap();
-        writeln!(s, "No {}.\n", title.to_lowercase()).unwrap();
-        return;
-    }
-    writeln!(s, "### {title} ({})\n", changes.len()).unwrap();
-    writeln!(s, "| benchmark | phase |{HEADER}").unwrap();
-    writeln!(s, "|-----------|-------|{RULE}").unwrap();
-    for c in changes {
-        writeln!(
-            s,
-            "| `{}` | {} | **{}** | {} | {} | {} |",
-            c.benchmark,
-            c.phase,
-            delta(c),
-            noise(c),
-            instructions(c),
-            instructions_noise(c),
-        )
-        .unwrap();
-    }
-    writeln!(s).unwrap();
-}
-
-/// A change's ratio and its confidence interval, e.g.
-/// `1.015x, 1.010x to 1.020x`.
-pub fn interval(c: &Change) -> String {
-    format!(
-        "{:.3}x, {:.3}x to {:.3}x",
-        c.ratio, c.ratio_low, c.ratio_high
-    )
-}
-
-/// How far each run's counts spread, e.g. `0.012% -> 0.015%`. The suite
-/// geomean aggregates means rather than samples, so it has no spread.
-pub fn noise(c: &Change) -> String {
-    match (c.old_noise, c.new_noise) {
-        (Some(old), Some(new)) => spread(old, new),
-        _ => "n/a".to_string(),
-    }
-}
-
-/// Two runs' noise, e.g. `0.012% -> 0.015%`.
-fn spread(old: f64, new: f64) -> String {
-    format!("{old:.3}% -> {new:.3}%")
-}
-
-/// A change's `instructions-retired` delta, e.g. `+1.48%`. The suite geomean
-/// has no counters of its own, and a run may not have recorded the event.
-pub fn instructions(c: &Change) -> String {
-    match c.instructions {
-        Some(i) => signed_percent(i.change),
-        None => "n/a".to_string(),
-    }
-}
-
-/// How far each run's `instructions-retired` counts spread. See [`noise`],
-/// which is the same for the virtual cycles.
-pub fn instructions_noise(c: &Change) -> String {
-    match c.instructions {
-        Some(i) => spread(i.old_noise, i.new_noise),
-        None => "n/a".to_string(),
-    }
-}
-
-/// The four columns the regressions and speedups tables share, after
-/// `benchmark` and `phase`. The virtual cycles are what a change is filed and
-/// sorted on, so they are bold.
-pub const HEADER: &str = " **Δ virtual cycles** | virtual cycles noise | \
-                      Δ instructions retired | instructions retired noise |";
-
-/// [`HEADER`]'s separator row.
-pub const RULE: &str = "----------------------|----------------------|\
-                    ------------------------|----------------------------|";
-
-/// A change as a signed percent with its confidence interval, e.g.
-/// `+1.50% (+1.48% to +1.52%)`. Callers reporting the number a change was
-/// filed on bold the whole cell.
-///
-/// `ratio` and its bounds are always at least 1, so a decrease reads them
-/// inverted: they bound `old / new` rather than `new / old`, and inverting
-/// swaps which end is which.
-pub fn delta(c: &Change) -> String {
-    let (low, high) = if c.is_increase() {
-        (c.ratio_low - 1.0, c.ratio_high - 1.0)
-    } else {
-        (1.0 / c.ratio_high - 1.0, 1.0 / c.ratio_low - 1.0)
-    };
-    format!(
-        "{} ({} to {})",
-        signed_percent(c.relative_change),
-        signed_percent(low),
-        signed_percent(high),
-    )
-}
-
-/// The first 12 characters of a SHA.
-pub fn short(sha: &str) -> &str {
-    &sha[..sha.len().min(12)]
-}
-
-fn percent(x: f64) -> String {
-    format!("{}%", x * 100.0)
-}
-
-/// Get a string describing the given ratio `x` as a signed percent.
-fn signed_percent(x: f64) -> String {
-    format!("{:+.2}%", x * 100.0)
 }
 
 #[cfg(test)]
@@ -1158,9 +987,9 @@ mod tests {
         let r = compare_branch_misses(40_000, 2_667, 4_000);
         let c = &r.regressions[0];
         assert_eq!(c.benchmark, "a.wasm");
-        assert_eq!(instructions(c), "+0.50%");
+        assert_eq!(markdown::instructions(c), "+0.50%");
         let mut s = String::new();
-        change_table(&mut s, "Regressions", &r.regressions);
+        markdown::change_table(&mut s, &config(), "Regressions", &r.regressions).unwrap();
         assert!(s.contains("| +0.50% |"), "{s}");
     }
 
@@ -1173,7 +1002,7 @@ mod tests {
             &[1000, 1001, 999, 1002, 998, 1000],
             &[1040, 1041, 1039, 1042, 1038, 1040],
         )]);
-        assert_eq!(instructions(&r.regressions[0]), "n/a");
+        assert_eq!(markdown::instructions(&r.regressions[0]), "n/a");
     }
 
     /// Branch misses explain only part of the delta, so the rest is something
@@ -1214,13 +1043,23 @@ mod tests {
 
     #[test]
     fn snapshots() {
+        let data = DataDir::new(&fixtures());
         for run in 1..=6 {
             let outcome = compare_fixture(run);
             assert_snapshot(
                 &format!("regressions/{run:05}.json"),
                 &stable_json(&outcome),
             );
-            assert_snapshot(&format!("regressions/{run:05}.md"), &summary(&outcome));
+            // Stand in for `git log` with the commits the run recorded.
+            let log = data
+                .metadata(RunNumber::new(run).unwrap())
+                .unwrap()
+                .wasmtime
+                .commits;
+            assert_snapshot(
+                &format!("regressions/{run:05}.md"),
+                &summary(&outcome, &config(), Some(&log)),
+            );
         }
     }
 
@@ -1229,6 +1068,9 @@ mod tests {
     #[test]
     fn suppressed_summary_snapshot() {
         let outcome = Outcome::Compared(compare_branch_misses(40_000, 2_667, 0));
-        assert_snapshot("regressions/suppressed.md", &summary(&outcome));
+        assert_snapshot(
+            "regressions/suppressed.md",
+            &summary(&outcome, &config(), None),
+        );
     }
 }

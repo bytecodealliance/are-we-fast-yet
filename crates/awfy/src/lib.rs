@@ -9,6 +9,7 @@ pub mod git;
 pub mod issue;
 pub mod latest;
 pub mod lint;
+mod markdown;
 pub mod metadata;
 pub mod record;
 pub mod regressions;
