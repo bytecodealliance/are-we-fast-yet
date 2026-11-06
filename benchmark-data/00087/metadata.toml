@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-11-06T20:21:42Z
+finished = 2026-11-06T22:07:52Z
+
+[wasmtime]
+commit = "c2851ff669c588563f2362dfd5d5be7518028132"
+commit-date = 2026-11-06T19:52:06Z
+
+[[wasmtime.commits]]
+commit = "c2851ff669c588563f2362dfd5d5be7518028132"
+subject = "Publish handle-table slot pointers in `VMComponentContext` (#15171)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "feddd60aa3cb00b30936a0ef5789f1dcdd234664"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42287592178"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
