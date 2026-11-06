@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-11-06T01:21:36Z
+finished = 2026-11-06T03:08:12Z
+
+[wasmtime]
+commit = "b76a1eea7cbc05551e11b90ed9aafe4b4daf4ed1"
+commit-date = 2026-11-06T00:52:44Z
+
+[[wasmtime.commits]]
+commit = "b76a1eea7cbc05551e11b90ed9aafe4b4daf4ed1"
+subject = "cranelift: x64: implement packed signed saturating subtraction - #3296 (#15179)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "c2ffbd3e2be9b4ab9bfc845c5a1c96aa9d6d147c"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42143223012"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
