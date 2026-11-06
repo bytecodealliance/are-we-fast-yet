@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-11-05T23:47:08Z
+finished = 2026-11-06T01:09:07Z
+
+[wasmtime]
+commit = "e64003e6dbf12c562b0cc859029e03b1259f75c1"
+commit-date = 2026-11-05T22:11:39Z
+
+[[wasmtime.commits]]
+commit = "e64003e6dbf12c562b0cc859029e03b1259f75c1"
+subject = "wasmtime: add Config::asan_compatible_code to override cfg!(asan) (#15156)"
+
+[[wasmtime.commits]]
+commit = "687670f7323efe08af9b45effc6b8e0d15c37170"
+subject = "Plumb table/memory type fallibility to C++ (#15172)"
+
+[[wasmtime.commits]]
+commit = "d1c3c60d43c87db6141e76a182a85da76af88565"
+subject = "cli: reject zero timeouts (#15143)"
+
+[[wasmtime.commits]]
+commit = "07f543121915e0ce2cca182089c41d09733d8d8c"
+subject = "Adjust `ValType::ty` for externrefs (#15170)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "485f6e82289cea4711385b0ba86cab25335744fc"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42128905113"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
