@@ -1,0 +1,43 @@
+schema = 1
+started = 2026-11-07T00:35:30Z
+finished = 2026-11-07T02:59:15Z
+
+[wasmtime]
+commit = "b95f045e4eb8aaf76d688e33e1b1455f4b33ed29"
+commit-date = 2026-11-06T23:42:32Z
+
+[[wasmtime.commits]]
+commit = "b95f045e4eb8aaf76d688e33e1b1455f4b33ed29"
+subject = "wasmtime-fiber: add raw fibers with snapshots. (#15187)"
+
+[[wasmtime.commits]]
+commit = "5b7ebf2fe0c80d675872f1ebde964b8ff4295789"
+subject = "Debugging: edit breakpoints and watchpoints through `BreakpointState`. (#15185)"
+
+[[wasmtime.commits]]
+commit = "0f36878cdf5a4b2457aa2a91b7d9d35f7fd9364f"
+subject = "Add memory range APIs, and borrow guest memory by range when possible. (#15183)"
+
+[[wasmtime.commits]]
+commit = "5956ebf6d58e2f936f919184027af38a6993ad76"
+subject = "Keep a component's breakpoints when single-stepping ends (#15182)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "b0a5b85f8c5b354b19852be391fb3311ac1b3995"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42311256974"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "INTEL(R) XEON(R) PLATINUM 8573C"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
