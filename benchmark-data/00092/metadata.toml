@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-11-09T21:09:47Z
+finished = 2026-11-09T22:13:31Z
+
+[wasmtime]
+commit = "5619a5dab7b17c397d349570edf29373d1a7b279"
+commit-date = 2026-11-09T20:33:55Z
+
+[[wasmtime.commits]]
+commit = "5619a5dab7b17c397d349570edf29373d1a7b279"
+subject = "fix: Copying collector: grow-vs-collect heuristic compares against the w (#15207)"
+
+[[wasmtime.commits]]
+commit = "0eccac5d55e88526e1859b843c6802afd7a3b837"
+subject = "cranelift: preserve rematerialization for cloned egraph values (#15205)"
+
+[[wasmtime.commits]]
+commit = "cfb483240b4d06f7c7628db1daa9d2e726b71db5"
+subject = "cranelift: handle interrupt_poll in inliner and emit stack map at faulting load PC (#14947)"
+
+[[wasmtime.commits]]
+commit = "56ef38d8df376a4a955c4dc5363811a9a6b14141"
+subject = "cranelift: store Args/Rets pairs in Box<[T]> instead of Vec (#15197)"
+
+[[wasmtime.commits]]
+commit = "eb8f873491919029da01795f3fd0e2bca1295837"
+subject = "Keep inlined breakpoints when single-stepping ends (#15194)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "50e8382b8f94a27b2263af0c94eca47da4c9e94e"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42692069715"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V45 96-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
