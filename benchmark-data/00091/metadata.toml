@@ -1,0 +1,47 @@
+schema = 1
+started = 2026-11-09T19:21:24Z
+finished = 2026-11-09T21:07:53Z
+
+[wasmtime]
+commit = "4182ebadb18e5655c246a0e67e53b3213bcaa3cf"
+commit-date = 2026-11-09T18:57:53Z
+
+[[wasmtime.commits]]
+commit = "4182ebadb18e5655c246a0e67e53b3213bcaa3cf"
+subject = "wasi: allow zero-length writes on tcp streams (#15186)"
+
+[[wasmtime.commits]]
+commit = "bf2dcf0b2e0441b5ddff8ece4f235a213e863bdf"
+subject = "wasi: don't wait for data on zero-length blocking reads (#15166)"
+
+[[wasmtime.commits]]
+commit = "45abfe1ba2c8d0d739696f82fbf5f1242888e067"
+subject = "Fix LICM hoisting across separate loops (#15201)"
+
+[[wasmtime.commits]]
+commit = "802482cac3c1a4ecf95206981b59f417d561cbd0"
+subject = "Fix edge cases in interpreter's float-to-int128 conversion  (#15199)"
+
+[[wasmtime.commits]]
+commit = "a691c346b4deefaac98fb8386dca48b3eb4cbb14"
+subject = "Cranelift: preserve source locations during egraph elaboration (#15184)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "30b7141b374616bc406dae3abcf245254cde6528"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42682426903"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 9V74 80-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
