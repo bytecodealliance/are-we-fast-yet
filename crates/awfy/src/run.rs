@@ -409,7 +409,17 @@ fn run_with(
             let args = command_line(config, &engine, &csv, &unit);
             let result = runner
                 .run(&sightglass_cli, &args, &benchmarks_dir)
-                .and_then(|exit| check(&exit, &csv));
+                .and_then(|exit| {
+                    if !exit.success {
+                        // The log keeps only a tail; keep it all for the
+                        // scratch artifact.
+                        let log = csv.with_extension("stderr");
+                        if let Err(e) = std::fs::write(&log, &exit.stderr) {
+                            log::warn!("writing {}: {e}", log.display());
+                        }
+                    }
+                    check(&exit, &csv)
+                });
             let elapsed = format_duration(unit_start.elapsed());
             let n = {
                 let mut done = done.lock().unwrap();
@@ -500,13 +510,13 @@ fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> Vec<
 /// Turn a finished process into success, or an error with a short reason.
 fn check(exit: &Exit, csv: &Path) -> Result<()> {
     if !exit.success {
-        let tail: Vec<&str> = exit.stderr.lines().rev().take(20).collect();
-        for line in tail.iter().rev() {
+        let lines = failure_lines(&exit.stderr);
+        let tail = &lines[lines.len().saturating_sub(40)..];
+        for line in tail {
             log::error!("  | {line}");
         }
-        let last = tail.iter().find(|l| !l.trim().is_empty());
-        match last {
-            Some(last) => bail!("{}: {}", exit.status, last.trim()),
+        match reason(&lines) {
+            Some(reason) => bail!("{}: {}", exit.status, reason),
             None => bail!("{}", exit.status),
         }
     }
@@ -514,6 +524,43 @@ fn check(exit: &Exit, csv: &Path) -> Result<()> {
     let rows = crate::runs::read_csv(file).context("unreadable output file")?;
     anyhow::ensure!(!rows.is_empty(), "empty output file");
     Ok(())
+}
+
+/// A failed unit's stderr without Valgrind's own `==PID==` lines, which would
+/// otherwise bury the error: `sightglass-cli` embeds its callgrind child's
+/// whole stderr, ending in Valgrind's exit summary.
+fn failure_lines(stderr: &str) -> Vec<&str> {
+    stderr
+        .lines()
+        .map(|l| {
+            // The child's first line follows sightglass's `stderr: ` label.
+            match l.strip_prefix("stderr: ") {
+                Some(rest) if is_valgrind_line(rest) => "stderr:",
+                _ => l.trim_end(),
+            }
+        })
+        .filter(|l| !l.is_empty() && !is_valgrind_line(l))
+        .collect()
+}
+
+/// Does `line` start with Valgrind's `==1234==` prefix?
+fn is_valgrind_line(line: &str) -> bool {
+    line.trim_start()
+        .strip_prefix("==")
+        .and_then(|rest| rest.split_once("=="))
+        .is_some_and(|(pid, _)| !pid.is_empty() && pid.bytes().all(|b| b.is_ascii_digit()))
+}
+
+/// The most telling line: a panic in the measured child, else the first
+/// `Error:` line, else the last line.
+fn reason<'a>(lines: &[&'a str]) -> Option<&'a str> {
+    let position = |pattern: &str| lines.iter().position(|l| l.contains(pattern));
+    position("panicked at")
+        // The message is on the line after the location.
+        .map(|i| lines.get(i + 1).unwrap_or(&lines[i]))
+        .or_else(|| position("Error:").map(|i| &lines[i]))
+        .or_else(|| lines.last())
+        .map(|l| l.trim())
 }
 
 fn short_reason(e: &anyhow::Error) -> String {
@@ -891,7 +938,9 @@ mod tests {
             files,
             [
                 "b__b.wasm.compilation.000.csv",
+                "b__b.wasm.compilation.001.stderr",
                 "b__b.wasm.execution.000.csv",
+                "b__b.wasm.execution.001.stderr",
                 MANIFEST
             ]
         );
@@ -1053,6 +1102,13 @@ mod tests {
         let manifest = run_fake(&options(root.path()), &runner).unwrap();
         // Every unit still ran.
         assert_eq!(runner.calls.lock().unwrap().len(), 9);
+        // Each failure's whole stderr is kept beside where its CSV would be.
+        let out = root.path().join("out");
+        assert_eq!(
+            std::fs::read_to_string(out.join("a__benchmark.wasm.002.stderr")).unwrap(),
+            "some output\nboom\n\n"
+        );
+        assert!(!out.join("a__benchmark.wasm.001.stderr").exists());
         let failed = |wasm: &str, iteration| Failed {
             wasm: wasm.into(),
             iteration,
@@ -1070,6 +1126,68 @@ mod tests {
         )
         .unwrap();
         assert_eq!(written.failed, expected);
+    }
+
+    /// Shaped like a real failure: `sightglass-cli`'s error embeds its
+    /// callgrind child's stderr, which ends in Valgrind's exit summary.
+    const CALLGRIND_FAILURE: &str =
+        "Error: callgrind benchmark subprocess did not exit successfully: exit status: 101
+stderr: ==3057== Callgrind, a call-graph generating cache profiler
+==3057== Command: /tmp/bin/sightglass-cli benchmark --iters 1
+==3057==
+
+thread 'main' panicked at crates/recorder/src/measure/callgrind.rs:131:14:
+failed to read callgrind dump: no callgrind output found at /tmp/x/callgrind.out.3057.1
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+==3057==
+==3057== Events    : Ir Bc Bcm Bi Bim
+==3057== Collected : 2 1 0 1 0
+==3057== Branches:      2  (1 cond + 1 ind)
+==3057== Mispredicts:   0  (0 cond + 0 ind)
+
+stdout: 
+";
+
+    #[test]
+    fn failures_skip_valgrind_output() {
+        let lines = failure_lines(CALLGRIND_FAILURE);
+        assert!(lines.iter().all(|l| !l.contains("==3057==")), "{lines:#?}");
+        assert_eq!(lines.len(), 6, "{lines:#?}");
+        assert_eq!(
+            reason(&lines),
+            Some(
+                "failed to read callgrind dump: no callgrind output found at /tmp/x/callgrind.out.3057.1"
+            )
+        );
+
+        let err = check(
+            &Exit {
+                success: false,
+                status: "exit status: 1".into(),
+                stderr: CALLGRIND_FAILURE.into(),
+            },
+            Path::new("/nonexistent.csv"),
+        )
+        .unwrap_err();
+        assert!(
+            err.to_string()
+                .starts_with("exit status: 1: failed to read callgrind dump"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn failure_reasons() {
+        // Without a panic, the first `Error:` line.
+        let lines = failure_lines("warning: x\nError: no engine\nCaused by: y\n");
+        assert_eq!(reason(&lines), Some("Error: no engine"));
+        // Otherwise, the last line.
+        assert_eq!(reason(&failure_lines("a\n  b  \n\n")), Some("b"));
+        assert_eq!(reason(&failure_lines("==1== only valgrind\n")), None);
+        // Not Valgrind's prefix.
+        assert!(!is_valgrind_line("== heading =="));
+        assert!(!is_valgrind_line("====="));
+        assert!(is_valgrind_line("  ==12== x"));
     }
 
     #[test]

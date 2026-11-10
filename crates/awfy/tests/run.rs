@@ -27,6 +27,13 @@ fn run_writes_one_csv_per_unit() {
             "a__benchmark.wasm.003.csv",
             "a__benchmark.wasm.004.csv",
             "a__benchmark.wasm.005.csv",
+            // `b` failed, so it has only its full stderr.
+            "b__benchmark.wasm.000.stderr",
+            "b__benchmark.wasm.001.stderr",
+            "b__benchmark.wasm.002.stderr",
+            "b__benchmark.wasm.003.stderr",
+            "b__benchmark.wasm.004.stderr",
+            "b__benchmark.wasm.005.stderr",
             "c__c.wasm.000.csv",
             "c__c.wasm.001.csv",
             "c__c.wasm.002.csv",
