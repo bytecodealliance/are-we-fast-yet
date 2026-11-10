@@ -45,7 +45,7 @@ pub struct Options {
 
 /// Most commits recorded in `wasmtime.commits`.
 ///
-/// Runs are three hours apart, so this only bites after a long gap. The rest
+/// Runs are under an hour apart, so this only bites after a long gap. The rest
 /// are counted in `wasmtime.omitted-commits` and stay reachable through the
 /// GitHub compare link.
 pub const MAX_COMMITS: usize = 200;

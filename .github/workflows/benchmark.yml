@@ -2,9 +2,10 @@ name: Benchmark
 
 on:
   schedule:
-    # Every hour, at 17 past.
+    # Every 15 minutes, off the round minutes that everyone else's cron jobs
+    # crowd onto.
     #
-    # A typical benchmark run takes about an hour, but only one runs at a
+    # A typical benchmark run takes longer than that, but only one runs at a
     # time, and new ones are queued. However, at most one pending job can be
     # queued at a time, and queuing a new job cancels the previously queued one,
     # so we don't need to worry about a ton of jobs queueing up.
@@ -12,7 +13,7 @@ on:
     # We run this frequently to try and keep regression ranges as narrow as
     # possible. When the Wasmtime commit hasn't changed, we don't run
     # benchmarks, so this doesn't unnecessarily waste a bunch of compute either.
-    - cron: "17 * * * *"
+    - cron: "7,22,37,52 * * * *"
   workflow_dispatch:
     inputs:
       force:

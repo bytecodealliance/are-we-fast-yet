@@ -1,6 +1,6 @@
 # Architecture
 
-A GitHub Actions run every hour benchmarks Wasmtime `main` under
+A GitHub Actions run every 15 minutes benchmarks Wasmtime `main` under
 Sightglass's callgrind measure, commits the raw results, and deploys trend
 plots to GitHub Pages. For significant virtual-cycles regressions, it bisects
 the run's range and files an issue on `bytecodealliance/wasmtime` naming the
@@ -54,8 +54,9 @@ hardware or external services, benchmarking PRs, and backfilling history.
   spread under 0.1% between processes, a few over 1%. Each run's noise is
   reported on its page and as error bars on the plots, and a minimum effect
   size filters out the tiny changes (see [regressions.md](regressions.md)).
-* **Repo growth.** Roughly 25 KiB per recorded run. At most 8 runs a day, so
-  up to roughly 75 MiB per year if `main` changes before every run; less in
-  practice, since unchanged commits are skipped.
+* **Repo growth.** Roughly 45 KiB per recorded run. Runs one at a time and
+  never measure the same commit twice, so there are at most as many runs as
+  Wasmtime commits: about 3,900 a year at today's merge rate, or roughly
+  165 MiB.
 * **Cron auto-disable.** GitHub disables cron workflows after 60 days without
   repo activity. Recorded data commits count.

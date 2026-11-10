@@ -1,10 +1,10 @@
 # Workflows
 
-* `benchmark.yml`: run, record, push, and bisect regressions, every hour. A
-  `concurrency` group keeps one writer, so run numbers allocated at record
-  time never collide, and a run that overruns its slot queues the next rather
-  than racing it. The bisect starts after the push, so its failure never loses
-  data. Its jobs:
+* `benchmark.yml`: run, record, push, and bisect regressions, every 15
+  minutes. A `concurrency` group keeps one writer, so run numbers allocated at
+  record time never collide, and a run that overruns its slot queues the next
+  rather than racing it. The bisect starts after the push, so its failure never
+  loses data. Its jobs:
   * `prepare` picks the Wasmtime commit, or skips if it was already measured,
     and builds `awfy`, the engine, and `sightglass-cli` once.
   * `measure` is a three-way matrix, one job per shard (see
