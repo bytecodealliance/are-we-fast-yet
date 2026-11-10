@@ -14,12 +14,8 @@ impl SystemMethods for FakeProbe {
             "git" => "f".repeat(40),
             "valgrind" => "valgrind-3.22.0".into(),
             "rustc" => "rustc 1.99.0 (b940084d7 2026-09-28)".into(),
-            "uname" => "Linux fake".into(),
             _ => anyhow::bail!("unexpected {program}"),
         })
-    }
-    fn cpu(&self) -> String {
-        "Fake CPU".into()
     }
     fn now(&self) -> Timestamp {
         "2026-10-07T05:00:00Z".parse().unwrap()
@@ -38,16 +34,7 @@ fn run_then_record() {
         String::from_utf8_lossy(&out.stderr)
     );
 
-    let options = Options {
-        scratch: root.path().join("scratch"),
-        wasmtime_commit: "7".repeat(40),
-        wasmtime_commit_date: "2026-10-07T01:00:00Z".parse().unwrap(),
-        started: "2026-10-07T03:17:00Z".parse().unwrap(),
-        workflow_run: None,
-        suite: None,
-        iterations: None,
-        wasmtime_repo: None,
-    };
+    let options = options(vec![root.path().join("scratch")]);
     let run = record(root.path(), &options, &FakeProbe, None).unwrap();
     assert_eq!(run, RunNumber::new(7).unwrap());
 
@@ -62,6 +49,7 @@ fn run_then_record() {
         metadata.failures.keys().collect::<Vec<_>>(),
         ["b/benchmark.wasm"]
     );
+    assert_ne!(metadata.environment.uname, "");
 
     let measurements = data.measurements(run).unwrap();
     // 2 benchmarks x 6 iterations x 3 phases x 2 events.
@@ -85,4 +73,50 @@ fn run_then_record() {
     let again = record(root.path(), &options, &FakeProbe, None).unwrap();
     let csv = |r: RunNumber| std::fs::read(data.run_dir(r).join(awfy::runs::CSV)).unwrap();
     assert_eq!(csv(run), csv(again));
+}
+
+/// The same run split three ways records byte-identical data.
+#[test]
+fn sharded_run_records_the_same_data() {
+    let root = common::run_root();
+    let whole = common::run_fake(root.path(), "b/");
+    assert!(whole.status.success());
+    let mut shards = Vec::new();
+    for k in 0..3 {
+        let out = common::run_fake_shard(root.path(), "b/", &format!("{k}/3"));
+        assert!(
+            out.status.success(),
+            "{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        shards.push(root.path().join(format!("scratch-{k}of3")));
+    }
+    let data = DataDir::new(root.path());
+    let one = record(
+        root.path(),
+        &options(vec![root.path().join("scratch")]),
+        &FakeProbe,
+        None,
+    )
+    .unwrap();
+    let three = record(root.path(), &options(shards), &FakeProbe, None).unwrap();
+    let csv = |r: RunNumber| std::fs::read(data.run_dir(r).join(awfy::runs::CSV)).unwrap();
+    assert_eq!(csv(one), csv(three));
+    assert_eq!(
+        data.metadata(one).unwrap().failures,
+        data.metadata(three).unwrap().failures
+    );
+}
+
+fn options(scratch: Vec<std::path::PathBuf>) -> Options {
+    Options {
+        scratch,
+        wasmtime_commit: "7".repeat(40),
+        wasmtime_commit_date: "2026-10-07T01:00:00Z".parse().unwrap(),
+        started: "2026-10-07T03:17:00Z".parse().unwrap(),
+        workflow_run: None,
+        suite: None,
+        iterations: None,
+        wasmtime_repo: None,
+    }
 }

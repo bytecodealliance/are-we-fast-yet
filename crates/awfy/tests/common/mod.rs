@@ -87,10 +87,21 @@ pub fn run_root() -> tempfile::TempDir {
     root
 }
 
+/// `awfy run` with the fake `sightglass-cli` into `<root>/scratch`, failing
+/// benchmarks whose path contains `fail`.
 pub fn run_fake(root: &Path, fail: &str) -> std::process::Output {
+    run_fake_into(root, fail, "scratch", &[])
+}
+
+/// The same, for one shard such as `1/3`, into `<root>/scratch-1of3`.
+pub fn run_fake_shard(root: &Path, fail: &str, shard: &str) -> std::process::Output {
+    let out = format!("scratch-{}", shard.replace('/', "of"));
+    run_fake_into(root, fail, &out, &["--shard", shard])
+}
+
+fn run_fake_into(root: &Path, fail: &str, out: &str, extra: &[&str]) -> std::process::Output {
     let engine = root.join("libengine.so");
     std::fs::write(&engine, "").unwrap();
-    let out = root.join("scratch");
     let mut cmd = std::process::Command::new(env!("CARGO_BIN_EXE_awfy"));
     cmd.arg("--root")
         .arg(root)
@@ -99,7 +110,8 @@ pub fn run_fake(root: &Path, fail: &str) -> std::process::Output {
         .arg("--sightglass-cli")
         .arg(fake_sightglass_cli())
         .arg("--out")
-        .arg(&out)
+        .arg(root.join(out))
+        .args(extra)
         .env("FAKE_SIGHTGLASS_FAIL", fail);
     cmd.output().unwrap()
 }

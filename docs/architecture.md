@@ -1,6 +1,6 @@
 # Architecture
 
-A GitHub Actions run every three hours benchmarks Wasmtime `main` under
+A GitHub Actions run every hour benchmarks Wasmtime `main` under
 Sightglass's callgrind measure, commits the raw results, files an issue on
 `bytecodealliance/wasmtime` for significant virtual-cycles regressions, and
 deploys trend plots to GitHub Pages. A run that finds Wasmtime `main`
@@ -19,10 +19,20 @@ hardware or external services, benchmarking PRs, and backfilling history.
 
 ## Key decisions
 
-* **One runner, many processes.** Callgrind counts don't depend on load, so
-  `awfy run` runs `nproc` units at once on one host, each unit one iteration of
-  one benchmark in its own process. If a run outgrows the 6 hour job limit,
-  shard across a matrix.
+* **Three shards, many processes each.** Callgrind counts don't depend on
+  load, so `awfy run` runs `nproc` units at once, each unit one iteration of
+  one benchmark in its own process. A run is split across three runners by
+  iteration: shard *k* runs iterations *k* and *k* + 3 of every benchmark. The
+  engine and `sightglass-cli` are built once and shared, so every shard
+  measures identical binaries.
+* **Why three, by iteration.** One iteration of `starlingmonkey-markdown`
+  takes 24 to 50 minutes, about half a run's CPU time, and no run can finish
+  faster than one of them. Three shards reach that floor: two cores run
+  starlingmonkey while the other two finish everything else. More shards, or
+  splitting by benchmark too, only add setup and expose the run to more slow
+  runners. Splitting by iteration also spreads each benchmark's samples across
+  hosts, so a host effect shows up as spread the regression test can see
+  rather than as a shift it would mistake for a Wasmtime change.
 * **Pinned environment.** `.github/actions/install-valgrind` pins Valgrind,
   `rust-toolchain.toml` pins rustc, and the `sightglass/` submodule pins the
   suite and cost model. Changing any of them changes the fingerprint (see
@@ -33,8 +43,10 @@ hardware or external services, benchmarking PRs, and backfilling history.
 
 ## Risks
 
-* **Run time is unmeasured.** Estimated about 1 hour on 4 cores; the longest
-  unit is about 25 minutes.
+* **Run time.** Unsharded runs took 60 to 130 minutes on 4 cores, depending
+  on the runner's CPU. Sharded, a run takes about one starlingmonkey iteration
+  plus about 5 minutes of setup per shard, so roughly 30 to 55 minutes. A run
+  is as slow as its slowest shard.
 * **Pinned flags drift.** New Cranelift ISA flags stay off until added to
   `config.toml`.
 * **Determinism.** Callgrind variance is small but not zero: most benchmarks

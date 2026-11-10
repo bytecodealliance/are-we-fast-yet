@@ -1,21 +1,137 @@
 //! `awfy run`: run the suite under callgrind as many small, independent
 //! `sightglass-cli` invocations, `--jobs` at a time. Each (benchmark,
 //! iteration index) unit writes its own CSV to the output directory, longest
-//! benchmark first as estimated from `benchmark-data/`. See
+//! benchmark first as estimated from `benchmark-data/`. With `--shard`, only
+//! that shard's iterations run, so several hosts can split a run. See
 //! `docs/architecture.md`.
 
 use crate::config::Config;
 use crate::runs::DataDir;
 use anyhow::{Context, Result, bail};
+use serde::{Deserialize, Serialize};
 use sightglass_data::{Measurement, Phase};
 use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::ffi::OsString;
+use std::fmt;
 use std::path::{Component, Path, PathBuf};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
-/// Per-benchmark failures, written by `awfy run` and read by `awfy record`.
-pub const FAILURES: &str = "failures.toml";
+/// The shard manifest's file name, written by `awfy run` beside its CSVs and
+/// read by `awfy record`.
+pub const MANIFEST: &str = "shard.toml";
+
+/// One shard of a run: every iteration `i` with `i % count == index`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Shard {
+    /// Which shard this is, from 0.
+    pub index: u32,
+    /// How many shards the run is split into.
+    pub count: u32,
+}
+
+impl Shard {
+    /// The whole run, unsharded.
+    pub const ALL: Self = Self { index: 0, count: 1 };
+
+    /// Does this shard run the given iteration?
+    pub fn runs(&self, iteration: u32) -> bool {
+        iteration % self.count == self.index
+    }
+}
+
+impl fmt::Display for Shard {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}/{}", self.index, self.count)
+    }
+}
+
+impl std::str::FromStr for Shard {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let (index, count) = s
+            .split_once('/')
+            .with_context(|| format!("invalid shard `{s}`; expected e.g. `0/3`"))?;
+        let shard = Self {
+            index: index
+                .parse()
+                .with_context(|| format!("invalid shard `{s}`"))?,
+            count: count
+                .parse()
+                .with_context(|| format!("invalid shard `{s}`"))?,
+        };
+        anyhow::ensure!(
+            shard.index < shard.count,
+            "invalid shard `{s}`; the index must be less than the count"
+        );
+        Ok(shard)
+    }
+}
+
+/// `shard.toml`: what one `awfy run` measured, where, and what failed.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Manifest {
+    /// See `Shard::index`.
+    pub index: u32,
+    /// See `Shard::count`.
+    pub count: u32,
+    /// The host that ran this shard.
+    pub host: Host,
+    /// Every unit that failed, by benchmark and then iteration.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub failed: Vec<Failed>,
+}
+
+/// A host that ran a shard.
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Host {
+    /// `uname -a`.
+    pub uname: String,
+    /// The CPU model name.
+    pub cpu: String,
+}
+
+impl Host {
+    /// Probe the current host.
+    fn probe() -> Result<Self> {
+        let output = std::process::Command::new("uname")
+            .arg("-a")
+            .output()
+            .context("running `uname -a`")?;
+        anyhow::ensure!(
+            output.status.success(),
+            "`uname -a` failed: {}",
+            output.status
+        );
+        let cpuinfo = std::fs::read_to_string("/proc/cpuinfo").unwrap_or_default();
+        Ok(Self {
+            uname: String::from_utf8(output.stdout)?.trim().to_string(),
+            cpu: cpuinfo_field(&cpuinfo, "model name").unwrap_or_else(|| "unknown".into()),
+        })
+    }
+}
+
+/// The first value of `field` in `/proc/cpuinfo`'s text.
+fn cpuinfo_field(cpuinfo: &str, field: &str) -> Option<String> {
+    cpuinfo.lines().find_map(|line| {
+        let (key, value) = line.split_once(':')?;
+        (key.trim() == field).then(|| value.trim().to_string())
+    })
+}
+
+/// A unit that failed.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Failed {
+    /// The benchmark, as `Unit::wasm`.
+    pub wasm: String,
+    /// The iteration that failed.
+    pub iteration: u32,
+    /// A short reason.
+    pub reason: String,
+}
 
 /// Options for the `awfy run` command.
 #[derive(clap::Args)]
@@ -39,6 +155,9 @@ pub struct Options {
     /// Units to run at once. Defaults to the available parallelism.
     #[arg(long)]
     jobs: Option<usize>,
+    /// Run only this shard's iterations, e.g. `1/3` for iterations 1, 4, ....
+    #[arg(long, default_value_t = Shard::ALL)]
+    shard: Shard,
 }
 
 /// One `sightglass-cli` invocation: one iteration of a benchmark.
@@ -104,21 +223,22 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
     if let Some(iterations) = options.iterations {
         config.benchmark.iterations = iterations;
     }
-    let failures = run_with(root, &config, &options, &ProcessRunner)?;
-    if !failures.is_empty() {
-        log::warn!("{} benchmark(s) failed", failures.len());
+    let manifest = run_with(root, &config, &options, &ProcessRunner, Host::probe()?)?;
+    if !manifest.failed.is_empty() {
+        log::warn!("{} unit(s) failed", manifest.failed.len());
     }
     Ok(())
 }
 
-/// Run every unit and write `failures.toml`. Returns the failures, by wasm
-/// path. Errors only on setup problems or if every unit failed.
+/// Run every unit in the shard and write its manifest. Errors only on setup
+/// problems or if every unit failed.
 fn run_with(
     root: &Path,
     config: &Config,
     options: &Options,
     runner: &dyn Runner,
-) -> Result<BTreeMap<String, String>> {
+    host: Host,
+) -> Result<Manifest> {
     let jobs = match options.jobs {
         Some(jobs) => jobs,
         None => std::thread::available_parallelism()?.get(),
@@ -169,13 +289,25 @@ fn run_with(
         estimates.len(),
         wasms.len()
     );
-    let units = schedule(&wasms, config.benchmark.iterations, &estimates);
+    let units = schedule(
+        &wasms,
+        config.benchmark.iterations,
+        options.shard,
+        &estimates,
+    );
+    anyhow::ensure!(
+        !units.is_empty(),
+        "shard {} has no iterations of {}",
+        options.shard,
+        config.benchmark.iterations
+    );
 
     let total = units.len();
     log::info!(
-        "running {total} units ({} benchmarks x {} iterations), {} at a time",
+        "running {total} units ({} benchmarks x {} iterations, shard {}), {} at a time",
         wasms.len(),
         config.benchmark.iterations,
+        options.shard,
         jobs
     );
 
@@ -226,13 +358,27 @@ fn run_with(
     if failed.len() == total {
         bail!("all {total} units failed");
     }
-    let failures = merge_failures(failed);
-    std::fs::write(out.join(FAILURES), toml::to_string(&failures)?)?;
+    let mut failed: Vec<Failed> = failed
+        .into_iter()
+        .map(|(unit, reason)| Failed {
+            wasm: unit.wasm.to_string_lossy().into_owned(),
+            iteration: unit.iteration,
+            reason,
+        })
+        .collect();
+    failed.sort();
+    let manifest = Manifest {
+        index: options.shard.index,
+        count: options.shard.count,
+        host,
+        failed,
+    };
+    std::fs::write(out.join(MANIFEST), toml::to_string(&manifest)?)?;
     log::info!(
         "finished {total} units in {}",
         format_duration(start.elapsed())
     );
-    Ok(failures)
+    Ok(manifest)
 }
 
 /// The `sightglass-cli` arguments for one unit, run from
@@ -291,33 +437,18 @@ fn short_reason(e: &anyhow::Error) -> String {
     }
 }
 
-/// One entry per benchmark, e.g. `"iteration 0: exit status: 1: boom;
-/// iteration 2: ..."`.
-fn merge_failures(mut failed: Vec<(Unit, String)>) -> BTreeMap<String, String> {
-    failed.sort_by_key(|(u, _)| (u.wasm.clone(), u.iteration));
-    let mut merged: BTreeMap<String, Vec<String>> = BTreeMap::new();
-    for (unit, reason) in failed {
-        merged
-            .entry(unit.wasm.to_string_lossy().into_owned())
-            .or_default()
-            .push(format!("iteration {}: {reason}", unit.iteration));
-    }
-    merged
-        .into_iter()
-        .map(|(wasm, reasons)| (wasm, reasons.join("; ")))
-        .collect()
-}
-
-/// Every unit to run, longest benchmark first, so that a long one doesn't
+/// Every unit in `shard`, longest benchmark first, so that a long one doesn't
 /// start last and stretch the run out behind it.
-fn schedule(wasms: &[PathBuf], iterations: u32, estimates: &Estimates) -> Vec<Unit> {
+fn schedule(wasms: &[PathBuf], iterations: u32, shard: Shard, estimates: &Estimates) -> Vec<Unit> {
     let mut units: Vec<Unit> = wasms
         .iter()
         .flat_map(|wasm| {
-            (0..iterations).map(|iteration| Unit {
-                wasm: wasm.clone(),
-                iteration,
-            })
+            (0..iterations)
+                .filter(|&i| shard.runs(i))
+                .map(|iteration| Unit {
+                    wasm: wasm.clone(),
+                    iteration,
+                })
         })
         .collect();
     // An unestimated benchmark could be the longest of all, so schedule it as
@@ -486,7 +617,20 @@ mod tests {
             suite: None,
             iterations: None,
             jobs: Some(2),
+            shard: Shard::ALL,
         }
+    }
+
+    fn host() -> Host {
+        Host {
+            uname: "Linux fake".into(),
+            cpu: "Fake CPU".into(),
+        }
+    }
+
+    fn run_fake(options: &Options, runner: &dyn Runner) -> Result<Manifest> {
+        let root = options.out.parent().unwrap();
+        run_with(root, &config(), options, runner, host())
     }
 
     /// Writes a one-row CSV, or fails for wasm paths containing `fail`, and
@@ -590,8 +734,8 @@ mod tests {
     fn runs_every_unit() {
         let root = root();
         let runner = FakeRunner::default();
-        let failures = run_with(root.path(), &config(), &options(root.path()), &runner).unwrap();
-        assert!(failures.is_empty());
+        let manifest = run_fake(&options(root.path()), &runner).unwrap();
+        assert!(manifest.failed.is_empty());
 
         let mut wasms: Vec<String> = runner
             .calls
@@ -618,7 +762,65 @@ mod tests {
         let out = root.path().join("out");
         assert!(out.join("b__b.wasm.000.csv").exists());
         assert!(out.join("c__benchmark.wasm.002.csv").exists());
-        assert_eq!(std::fs::read_to_string(out.join(FAILURES)).unwrap(), "");
+        let written: Manifest =
+            toml::from_str(&std::fs::read_to_string(out.join(MANIFEST)).unwrap()).unwrap();
+        assert_eq!(written, manifest);
+        assert_eq!((written.index, written.count), (0, 1));
+        assert_eq!(written.host, host());
+    }
+
+    #[test]
+    fn runs_only_its_shard() {
+        let root = root();
+        let runner = FakeRunner::default();
+        let options = Options {
+            suite: Some("benchmarks/one.suite".into()),
+            iterations: None,
+            shard: "1/2".parse().unwrap(),
+            ..options(root.path())
+        };
+        // The fixture config runs 3 iterations, so shard 1 of 2 runs just 1.
+        let manifest = run_fake(&options, &runner).unwrap();
+        assert_eq!((manifest.index, manifest.count), (1, 2));
+        let mut files: Vec<String> = std::fs::read_dir(&options.out)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        files.sort();
+        assert_eq!(files, ["b__b.wasm.001.csv", MANIFEST]);
+    }
+
+    #[test]
+    fn empty_shard_is_an_error() {
+        let root = root();
+        let options = Options {
+            shard: "3/4".parse().unwrap(),
+            ..options(root.path())
+        };
+        let err = run_fake(&options, &FakeRunner::default()).unwrap_err();
+        assert!(
+            err.to_string().contains("shard 3/4 has no iterations"),
+            "{err}"
+        );
+    }
+
+    #[test]
+    fn shard_syntax() {
+        let shard: Shard = "2/3".parse().unwrap();
+        assert_eq!(shard, Shard { index: 2, count: 3 });
+        assert_eq!(shard.to_string(), "2/3");
+        assert!(shard.runs(2) && shard.runs(5) && !shard.runs(3));
+        for bad in ["3/3", "1", "a/3", "1/0", "-1/3"] {
+            assert!(bad.parse::<Shard>().is_err(), "{bad}");
+        }
+    }
+
+    #[test]
+    fn cpuinfo_fields() {
+        let info = "processor\t: 0\nmodel name\t: AMD EPYC 7763\nflags\t\t: fpu vme\n\nprocessor\t: 1\nmodel name\t: AMD EPYC 7763\n";
+        assert_eq!(cpuinfo_field(info, "model name").unwrap(), "AMD EPYC 7763");
+        assert_eq!(cpuinfo_field(info, "flags").unwrap(), "fpu vme");
+        assert_eq!(cpuinfo_field(info, "bogus"), None);
     }
 
     #[test]
@@ -629,7 +831,7 @@ mod tests {
             suite: Some("benchmarks/one.suite".into()),
             ..options(root.path())
         };
-        run_with(root.path(), &config(), &options, &runner).unwrap();
+        run_fake(&options, &runner).unwrap();
         let calls = runner.calls.lock().unwrap();
         assert_eq!(calls.len(), 3);
         assert!(calls.iter().all(|a| a.last().unwrap() == "b/b.wasm"));
@@ -645,7 +847,7 @@ mod tests {
                 out: root.path().join(format!("out{jobs}")),
                 ..options(root.path())
             };
-            run_with(root.path(), &config(), &options, &runner).unwrap();
+            run_fake(&options, &runner).unwrap();
             let max = runner.max_in_flight.load(Ordering::SeqCst);
             assert!(max <= jobs, "{max} > {jobs}");
             if jobs > 1 {
@@ -661,26 +863,25 @@ mod tests {
             fail: vec![("a/", 0), ("a/", 2), ("c/", 1)],
             ..Default::default()
         };
-        let failures = run_with(root.path(), &config(), &options(root.path()), &runner).unwrap();
+        let manifest = run_fake(&options(root.path()), &runner).unwrap();
         // Every unit still ran.
         assert_eq!(runner.calls.lock().unwrap().len(), 9);
-        let expected: BTreeMap<String, String> = [
-            (
-                "a/benchmark.wasm".to_string(),
-                "iteration 0: exit status: 1: boom; iteration 2: exit status: 1: boom".to_string(),
-            ),
-            (
-                "c/benchmark.wasm".to_string(),
-                "iteration 1: exit status: 1: boom".to_string(),
-            ),
-        ]
-        .into();
-        assert_eq!(failures, expected);
-        let written: BTreeMap<String, String> = toml::from_str(
-            &std::fs::read_to_string(root.path().join("out").join(FAILURES)).unwrap(),
+        let failed = |wasm: &str, iteration| Failed {
+            wasm: wasm.into(),
+            iteration,
+            reason: "exit status: 1: boom".into(),
+        };
+        let expected = [
+            failed("a/benchmark.wasm", 0),
+            failed("a/benchmark.wasm", 2),
+            failed("c/benchmark.wasm", 1),
+        ];
+        assert_eq!(manifest.failed, expected);
+        let written: Manifest = toml::from_str(
+            &std::fs::read_to_string(root.path().join("out").join(MANIFEST)).unwrap(),
         )
         .unwrap();
-        assert_eq!(written, expected);
+        assert_eq!(written.failed, expected);
     }
 
     #[test]
@@ -704,9 +905,16 @@ mod tests {
             }
         }
         let root = root();
-        let failures = run_with(root.path(), &config(), &options(root.path()), &NoOutput).unwrap();
-        assert_eq!(failures.len(), 2);
-        assert!(failures["b/b.wasm"].contains("no output file"));
+        let manifest = run_fake(&options(root.path()), &NoOutput).unwrap();
+        // `b` and `c`, three iterations each.
+        assert_eq!(manifest.failed.len(), 6);
+        assert!(
+            manifest
+                .failed
+                .iter()
+                .filter(|f| f.wasm == "b/b.wasm")
+                .all(|f| f.reason.contains("no output file"))
+        );
     }
 
     #[test]
@@ -721,7 +929,7 @@ mod tests {
             suite: Some("benchmarks/one.suite".into()),
             ..options(root.path())
         };
-        let err = run_with(root.path(), &config(), &options, &runner).unwrap_err();
+        let err = run_fake(&options, &runner).unwrap_err();
         assert!(err.to_string().contains("all 3 units failed"), "{err}");
     }
 
@@ -731,7 +939,7 @@ mod tests {
         let options = options(root.path());
         std::fs::create_dir(&options.out).unwrap();
         std::fs::write(options.out.join("stale.csv"), "").unwrap();
-        assert!(run_with(root.path(), &config(), &options, &FakeRunner::default()).is_err());
+        assert!(run_fake(&options, &FakeRunner::default()).is_err());
     }
 
     /// A `benchmark-data/` holding one directory per run, each measuring the
@@ -884,7 +1092,7 @@ mod tests {
             (PathBuf::from("d.wasm"), 20),
         ]
         .into();
-        let order: Vec<String> = schedule(&wasms, 2, &estimates)
+        let order: Vec<String> = schedule(&wasms, 2, Shard::ALL, &estimates)
             .iter()
             .map(|u| format!("{} {}", u.wasm.display(), u.iteration))
             .collect();
@@ -901,7 +1109,7 @@ mod tests {
     #[test]
     fn schedules_in_suite_order_without_estimates() {
         let wasms: Vec<PathBuf> = ["b.wasm", "a.wasm", "c.wasm"].map(PathBuf::from).to_vec();
-        let units = schedule(&wasms, 1, &Estimates::new());
+        let units = schedule(&wasms, 1, Shard::ALL, &Estimates::new());
         let order: Vec<&Path> = units.iter().map(|u| u.wasm.as_path()).collect();
         assert_eq!(
             order,

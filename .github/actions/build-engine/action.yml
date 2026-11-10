@@ -1,0 +1,33 @@
+name: Build engine
+description: >-
+  Build Wasmtime's bench API `libengine.so` at one commit, with this repo's
+  pinned toolchain. Builds in `$RUNNER_TEMP/wasmtime-build`, so restore that
+  from the cache first to make the build incremental.
+
+inputs:
+  revision:
+    description: The full Wasmtime commit SHA.
+    required: true
+  out:
+    description: Directory to write `libengine.so` to.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        REVISION: ${{ inputs.revision }}
+        OUT: ${{ inputs.out }}
+      run: |
+        # Build Wasmtime with this repo's pinned toolchain, not Wasmtime's.
+        RUSTUP_TOOLCHAIN=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
+        export RUSTUP_TOOLCHAIN
+        export BUILD_DIR="$RUNNER_TEMP/wasmtime-build"
+        mkdir -p "$BUILD_DIR" "$OUT"
+        rustc sightglass/engines/wasmtime/build.rs -o "$RUNNER_TEMP/build-engine"
+        "$RUNNER_TEMP/build-engine" "$OUT"
+        # The build script ignores failing git commands, so make sure it
+        # built the right commit and not a stale cached one.
+        test "$(git -C "$BUILD_DIR" rev-parse HEAD)" = "$REVISION"
+        test -f "$OUT/libengine.so"

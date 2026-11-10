@@ -4,7 +4,7 @@ on:
   schedule:
     # Every hour, at 17 past.
     #
-    # A typical benchmark run takes longer than an hour, but only one runs at a
+    # A typical benchmark run takes about an hour, but only one runs at a
     # time, and new ones are queued. However, at most one pending job can be
     # queued at a time, and queuing a new job cancels the previously queued one,
     # so we don't need to worry about a ton of jobs queueing up.
@@ -40,21 +40,20 @@ env:
   WASMTIME_REPO: https://github.com/bytecodealliance/wasmtime
 
 jobs:
-  benchmark:
+  # Pick the commit and build everything once, so every shard measures
+  # identical binaries.
+  prepare:
     runs-on: ubuntu-24.04
-    timeout-minutes: 360
-    permissions:
-      contents: write
-      # Regression issues go to this repo during rollout. See docs/tokens.md.
-      issues: write
+    timeout-minutes: 120
     outputs:
-      run: ${{ steps.record.outputs.run }}
+      sha: ${{ steps.check.outputs.sha }}
+      started: ${{ steps.check.outputs.started }}
       skip: ${{ steps.check.outputs.skip }}
+      ref: ${{ steps.check.outputs.ref }}
     env:
       DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
-      SUITE: ${{ inputs.suite }}
     steps:
-      # A queued job can start hours after its trigger, so check out the tip
+      # A queued run can start hours after its trigger, so check out the tip
       # rather than `github.sha`, which would miss the data pushed in the
       # meantime and reuse its run number.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -85,28 +84,17 @@ jobs:
           sha=$(git ls-remote "$WASMTIME_REPO" refs/heads/main | cut -f1)
           latest=$(target/release/awfy latest wasmtime.commit)
           echo "wasmtime main is $sha; latest run measured ${latest:-nothing}"
-          echo "sha=$sha" >> "$GITHUB_OUTPUT"
-          echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
+          {
+            echo "sha=$sha"
+            echo "started=$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            echo "ref=$(git rev-parse HEAD)"
+          } >> "$GITHUB_OUTPUT"
           if [ "$sha" = "$latest" ] && [ "$FORCE" != true ]; then
             echo "skip=true" >> "$GITHUB_OUTPUT"
             echo "Wasmtime \`$sha\` was already benchmarked; skipping." >> "$GITHUB_STEP_SUMMARY"
           else
             echo "skip=false" >> "$GITHUB_OUTPUT"
           fi
-
-      # Treeless: enough for the commit date and the new commits' log.
-      - name: Clone Wasmtime
-        if: steps.check.outputs.skip == 'false'
-        id: wasmtime
-        env:
-          SHA: ${{ steps.check.outputs.sha }}
-        run: |
-          git clone --filter=tree:0 --no-checkout "$WASMTIME_REPO" "$RUNNER_TEMP/wasmtime"
-          echo "date=$(git -C "$RUNNER_TEMP/wasmtime" log -1 --format=%cI "$SHA")" >> "$GITHUB_OUTPUT"
-
-      - name: Install Valgrind
-        if: steps.check.outputs.skip == 'false'
-        uses: ./.github/actions/install-valgrind
 
       # Sightglass's build script fetches into BUILD_DIR's existing clone and
       # reuses its `target/`, so caching it makes successive builds
@@ -121,44 +109,128 @@ jobs:
 
       - name: Build engine
         if: steps.check.outputs.skip == 'false'
-        env:
-          REVISION: ${{ steps.check.outputs.sha }}
-        run: |
-          # Build Wasmtime with this repo's pinned toolchain, not Wasmtime's.
-          RUSTUP_TOOLCHAIN=$(sed -n 's/^channel = "\(.*\)"/\1/p' rust-toolchain.toml)
-          export RUSTUP_TOOLCHAIN
-          export BUILD_DIR="$RUNNER_TEMP/wasmtime-build"
-          mkdir -p "$BUILD_DIR" "$RUNNER_TEMP/engine"
-          rustc sightglass/engines/wasmtime/build.rs -o "$RUNNER_TEMP/build-engine"
-          "$RUNNER_TEMP/build-engine" "$RUNNER_TEMP/engine"
-          # The build script ignores failing git commands, so make sure it
-          # built the right commit and not a stale cached one.
-          test "$(git -C "$BUILD_DIR" rev-parse HEAD)" = "$REVISION"
-          test -f "$RUNNER_TEMP/engine/libengine.so"
+        uses: ./.github/actions/build-engine
+        with:
+          revision: ${{ steps.check.outputs.sha }}
+          out: ${{ runner.temp }}/bin/engine
 
       - name: Build sightglass-cli
         if: steps.check.outputs.skip == 'false'
-        run: cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
+        run: |
+          cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
+          cp target/release/awfy sightglass/target/release/sightglass-cli "$RUNNER_TEMP/bin/"
+
+      - name: Upload binaries
+        if: steps.check.outputs.skip == 'false'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: binaries
+          path: ${{ runner.temp }}/bin
+          if-no-files-found: error
+          retention-days: 7
+
+  # One shard per job: shard k runs iterations k, k + 3, ... of every
+  # benchmark, so each benchmark's samples come from several hosts. See
+  # docs/architecture.md.
+  measure:
+    needs: prepare
+    if: needs.prepare.outputs.skip == 'false'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 360
+    strategy:
+      matrix:
+        shard: [0, 1, 2]
+    env:
+      SUITE: ${{ inputs.suite }}
+      SHARD: ${{ matrix.shard }}/${{ strategy.job-total }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          submodules: recursive
+
+      - name: Install Valgrind
+        uses: ./.github/actions/install-valgrind
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: binaries
+          path: ${{ runner.temp }}/bin
 
       - name: awfy run
-        if: steps.check.outputs.skip == 'false'
         run: |
-          target/release/awfy run \
-            --engine "$RUNNER_TEMP/engine/libengine.so" \
-            --sightglass-cli sightglass/target/release/sightglass-cli \
+          # Artifacts don't keep the executable bit.
+          chmod +x "$RUNNER_TEMP/bin/awfy" "$RUNNER_TEMP/bin/sightglass-cli"
+          "$RUNNER_TEMP/bin/awfy" run \
+            --engine "$RUNNER_TEMP/bin/engine/libengine.so" \
+            --sightglass-cli "$RUNNER_TEMP/bin/sightglass-cli" \
             --out "$RUNNER_TEMP/scratch" \
+            --shard "$SHARD" \
             ${SUITE:+--suite "$SUITE"}
 
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: scratch-${{ matrix.shard }}
+          path: ${{ runner.temp }}/scratch
+          if-no-files-found: error
+          retention-days: 7
+
+  record:
+    needs: [prepare, measure]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: write
+      # Regression issues go to this repo during rollout. See docs/tokens.md.
+      issues: write
+    outputs:
+      run: ${{ steps.record.outputs.run }}
+    env:
+      DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
+      SUITE: ${{ inputs.suite }}
+    steps:
+      # The commit the shards measured with, so the recorded config, suite,
+      # and Sightglass commit are the ones measured.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.prepare.outputs.ref }}
+          submodules: recursive
+
+      - uses: ./.github/actions/rust-cache
+
+      - run: cargo build --release -p awfy
+
+      # Treeless: enough for the commit date and the new commits' log.
+      - name: Clone Wasmtime
+        id: wasmtime
+        env:
+          SHA: ${{ needs.prepare.outputs.sha }}
+        run: |
+          git clone --filter=tree:0 --no-checkout "$WASMTIME_REPO" "$RUNNER_TEMP/wasmtime"
+          echo "date=$(git -C "$RUNNER_TEMP/wasmtime" log -1 --format=%cI "$SHA")" >> "$GITHUB_OUTPUT"
+
+      # For the Valgrind version `awfy record` records.
+      - name: Install Valgrind
+        uses: ./.github/actions/install-valgrind
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: scratch-*
+          path: ${{ runner.temp }}/scratch
+
       - name: awfy record
-        if: steps.check.outputs.skip == 'false'
         id: record
         env:
-          SHA: ${{ steps.check.outputs.sha }}
+          SHA: ${{ needs.prepare.outputs.sha }}
           DATE: ${{ steps.wasmtime.outputs.date }}
-          STARTED: ${{ steps.check.outputs.started }}
+          STARTED: ${{ needs.prepare.outputs.started }}
         run: |
+          scratch=()
+          for dir in "$RUNNER_TEMP"/scratch/scratch-*; do
+            scratch+=(--scratch "$dir")
+          done
           run=$(target/release/awfy record \
-            --scratch "$RUNNER_TEMP/scratch" \
+            "${scratch[@]}" \
             --wasmtime-commit "$SHA" \
             --wasmtime-commit-date "$DATE" \
             --started "$STARTED" \
@@ -168,10 +240,10 @@ jobs:
           echo "run=$run" >> "$GITHUB_OUTPUT"
 
       - name: Commit and push
-        if: steps.check.outputs.skip == 'false' && env.DRY_RUN == 'false'
+        if: env.DRY_RUN == 'false'
         env:
           RUN: ${{ steps.record.outputs.run }}
-          SHA: ${{ steps.check.outputs.sha }}
+          SHA: ${{ needs.prepare.outputs.sha }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
@@ -185,7 +257,6 @@ jobs:
           exit 1
 
       - name: awfy regressions
-        if: steps.check.outputs.skip == 'false'
         id: regressions
         env:
           RUN: ${{ steps.record.outputs.run }}
@@ -207,7 +278,7 @@ jobs:
           fi
 
       - name: Upload dry-run results
-        if: steps.check.outputs.skip == 'false' && env.DRY_RUN == 'true'
+        if: env.DRY_RUN == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: dry-run-${{ steps.record.outputs.run }}
@@ -250,8 +321,8 @@ jobs:
             ${LABELS:+--label "$LABELS"}
 
   pages:
-    needs: benchmark
-    if: needs.benchmark.outputs.skip == 'false' && !inputs.dry-run
+    needs: record
+    if: ${{ !inputs.dry-run }}
     permissions:
       contents: read
       pages: write

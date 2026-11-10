@@ -33,14 +33,25 @@ fn run_writes_one_csv_per_unit() {
             "c__c.wasm.003.csv",
             "c__c.wasm.004.csv",
             "c__c.wasm.005.csv",
-            "failures.toml",
+            "shard.toml",
         ]
     );
 
-    let failures = std::fs::read_to_string(scratch.join("failures.toml")).unwrap();
-    assert!(
-        failures.starts_with("\"b/benchmark.wasm\" = \"iteration 0: exit status: 1: Error: benchmark b/benchmark.wasm failed on purpose; iteration 1:"),
-        "{failures}"
+    let manifest: awfy::run::Manifest =
+        toml::from_str(&std::fs::read_to_string(scratch.join("shard.toml")).unwrap()).unwrap();
+    assert_eq!((manifest.index, manifest.count), (0, 1));
+    let failed: Vec<(&str, u32)> = manifest
+        .failed
+        .iter()
+        .map(|f| (f.wasm.as_str(), f.iteration))
+        .collect();
+    assert_eq!(
+        failed,
+        (0..6).map(|i| ("b/benchmark.wasm", i)).collect::<Vec<_>>()
+    );
+    assert_eq!(
+        manifest.failed[0].reason,
+        "exit status: 1: Error: benchmark b/benchmark.wasm failed on purpose"
     );
 
     let rows =

@@ -1,12 +1,12 @@
-//! `awfy record`: turn `awfy run`'s scratch directory into a new, immutable
-//! `benchmark-data/NNNNN/`. See `docs/data.md`.
+//! `awfy record`: turn the scratch directories of every shard's `awfy run`
+//! into a new, immutable `benchmark-data/NNNNN/`. See `docs/data.md`.
 
 use crate::config::Config;
 use crate::git::{GitLog, Repo};
 use crate::metadata::{
     AreWeFastYet, Environment, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
 };
-use crate::run::FAILURES;
+use crate::run::{Failed, MANIFEST, Manifest};
 use crate::runs::{self, DataDir, RunNumber};
 use anyhow::{Context, Result, bail};
 use sightglass_data::Measurement;
@@ -16,9 +16,10 @@ use std::path::{Component, Path, PathBuf};
 /// Options for the `awfy record` command.
 #[derive(clap::Args)]
 pub struct Options {
-    /// `awfy run`'s output directory.
-    #[arg(long)]
-    pub scratch: PathBuf,
+    /// `awfy run`'s output directory. Repeat once per shard; together they
+    /// must cover every shard of the run exactly once.
+    #[arg(long, required = true)]
+    pub scratch: Vec<PathBuf>,
     /// Full SHA of the benchmarked Wasmtime commit.
     #[arg(long)]
     pub wasmtime_commit: String,
@@ -54,8 +55,6 @@ pub const MAX_COMMITS: usize = 200;
 pub trait SystemMethods {
     /// Trimmed stdout of a command that must succeed.
     fn command(&self, cwd: &Path, program: &str, args: &[&str]) -> Result<String>;
-    /// The CPU model name.
-    fn cpu(&self) -> String;
     /// Get the timestamp for the current moment.
     fn now(&self) -> Timestamp;
 }
@@ -78,23 +77,6 @@ impl SystemMethods for System {
             String::from_utf8_lossy(&output.stderr)
         );
         Ok(String::from_utf8(output.stdout)?.trim().to_string())
-    }
-
-    fn cpu(&self) -> String {
-        std::fs::read_to_string("/proc/cpuinfo")
-            .ok()
-            .and_then(|info| {
-                info.lines().find_map(|l| {
-                    Some(
-                        l.strip_prefix("model name")?
-                            .split_once(':')?
-                            .1
-                            .trim()
-                            .to_string(),
-                    )
-                })
-            })
-            .unwrap_or_else(|| "unknown".into())
     }
 
     fn now(&self) -> Timestamp {
@@ -123,19 +105,15 @@ pub fn record(
     git: Option<&dyn GitLog>,
 ) -> Result<RunNumber> {
     let config = Config::load(root)?;
+    let manifests = manifests(&options.scratch)?;
     let measurements = merge(&options.scratch)?;
     if measurements.is_empty() {
         bail!(
             "no benchmark produced any rows in {}",
-            options.scratch.display()
+            scratch_list(&options.scratch)
         );
     }
-    let failures_path = options.scratch.join(FAILURES);
-    let failures: BTreeMap<String, String> = toml::from_str(
-        &std::fs::read_to_string(&failures_path)
-            .with_context(|| format!("reading {}", failures_path.display()))?,
-    )
-    .with_context(|| format!("parsing {}", failures_path.display()))?;
+    let failures = merge_failures(&manifests);
 
     let data = DataDir::new(root);
     std::fs::create_dir_all(data.path())?;
@@ -192,8 +170,8 @@ pub fn record(
             // Run from the root so `rust-toolchain.toml` picks the toolchain,
             // the same one that built Wasmtime.
             rustc: probe.command(root, "rustc", &["--version"])?,
-            uname: probe.command(root, "uname", &["-a"])?,
-            cpu: probe.cpu(),
+            uname: distinct(manifests.iter().map(|m| m.host.uname.as_str())),
+            cpu: distinct(manifests.iter().map(|m| m.host.cpu.as_str())),
         },
         config: RunConfig {
             iterations: options.iterations.unwrap_or(config.benchmark.iterations),
@@ -214,17 +192,96 @@ pub fn record(
     Ok(run)
 }
 
+fn scratch_list(scratch: &[PathBuf]) -> String {
+    let dirs: Vec<String> = scratch.iter().map(|d| d.display().to_string()).collect();
+    dirs.join(", ")
+}
+
+/// Every scratch directory's manifest, in shard order. Errors unless they
+/// cover every shard of one run exactly once, so a lost shard can never pass
+/// for a run with fewer iterations.
+fn manifests(scratch: &[PathBuf]) -> Result<Vec<Manifest>> {
+    let mut manifests = Vec::new();
+    for dir in scratch {
+        let path = dir.join(MANIFEST);
+        let text = std::fs::read_to_string(&path)
+            .with_context(|| format!("reading {}", path.display()))?;
+        let manifest: Manifest =
+            toml::from_str(&text).with_context(|| format!("parsing {}", path.display()))?;
+        manifests.push(manifest);
+    }
+    manifests.sort_by_key(|m| m.index);
+    let count = manifests.first().context("no scratch directories")?.count;
+    let indices: Vec<u32> = manifests.iter().map(|m| m.index).collect();
+    if manifests.iter().any(|m| m.count != count) || indices != (0..count).collect::<Vec<_>>() {
+        let shards: Vec<String> = manifests
+            .iter()
+            .map(|m| format!("{}/{}", m.index, m.count))
+            .collect();
+        bail!(
+            "the scratch directories must hold each shard of one run exactly once; found shards {}",
+            shards.join(", ")
+        );
+    }
+    Ok(manifests)
+}
+
+/// One entry per benchmark, e.g. `"iteration 0: exit status: 1: boom;
+/// iteration 2: ..."`.
+fn merge_failures(manifests: &[Manifest]) -> BTreeMap<String, String> {
+    let mut failed: Vec<&Failed> = manifests.iter().flat_map(|m| &m.failed).collect();
+    failed.sort();
+    let mut merged: BTreeMap<String, Vec<String>> = BTreeMap::new();
+    for f in failed {
+        merged
+            .entry(f.wasm.clone())
+            .or_default()
+            .push(format!("iteration {}: {}", f.iteration, f.reason));
+    }
+    merged
+        .into_iter()
+        .map(|(wasm, reasons)| (wasm, reasons.join("; ")))
+        .collect()
+}
+
+/// The distinct values, in first-seen order, joined with `; `.
+fn distinct<'a>(values: impl Iterator<Item = &'a str>) -> String {
+    let mut seen: Vec<&str> = Vec::new();
+    for v in values {
+        if !seen.contains(&v) {
+            seen.push(v);
+        }
+    }
+    seen.join("; ")
+}
+
 /// Read every per-unit CSV in `scratch`, normalize, and sort.
 ///
 /// `engine` becomes `wasmtime`, and `wasm` is made relative to
 /// `sightglass/benchmarks/`.
-fn merge(scratch: &Path) -> Result<Vec<Measurement<'static>>> {
-    let mut files: Vec<PathBuf> = std::fs::read_dir(scratch)
-        .with_context(|| format!("reading {}", scratch.display()))?
-        .map(|e| Ok(e?.path()))
-        .collect::<Result<_>>()?;
-    files.retain(|f| f.extension().is_some_and(|e| e == "csv"));
-    files.sort();
+fn merge(scratch: &[PathBuf]) -> Result<Vec<Measurement<'static>>> {
+    let mut files: Vec<PathBuf> = Vec::new();
+    for dir in scratch {
+        for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
+            let path = entry?.path();
+            if path.extension().is_some_and(|e| e == "csv") {
+                files.push(path);
+            }
+        }
+    }
+    // By file name, not path, so each benchmark's rows stay in iteration
+    // order whichever shard measured them.
+    files.sort_by(|a, b| a.file_name().cmp(&b.file_name()));
+    if let Some(w) = files
+        .windows(2)
+        .find(|w| w[0].file_name() == w[1].file_name())
+    {
+        bail!(
+            "{} and {} measured the same unit",
+            w[0].display(),
+            w[1].display()
+        );
+    }
 
     let mut measurements = Vec::new();
     for file in files {
@@ -291,12 +348,8 @@ mod tests {
                 ("valgrind", _) if self.fail_valgrind.get() => bail!("no valgrind"),
                 ("valgrind", ["--version"]) => "valgrind-3.22.0".into(),
                 ("rustc", ["--version"]) => "rustc 1.99.0 (b940084d7 2026-09-28)".into(),
-                ("uname", ["-a"]) => "Linux fake x86_64 GNU/Linux".into(),
                 _ => bail!("unexpected command {program} {args:?}"),
             })
-        }
-        fn cpu(&self) -> String {
-            "Fake CPU".into()
         }
         fn now(&self) -> Timestamp {
             "2026-10-10T04:00:00Z".parse().unwrap()
@@ -305,13 +358,41 @@ mod tests {
 
     const HEADER: &str = "arch,engine,engine_flags,wasm,phase,event,count\n";
 
-    /// A scratch dir with the given `(file name, rows)` and `failures.toml`.
-    fn scratch(files: &[(&str, &str)], failures: &str) -> tempfile::TempDir {
-        let tmp = tempfile::tempdir().unwrap();
-        for (name, rows) in files {
-            std::fs::write(tmp.path().join(name), format!("{HEADER}{rows}")).unwrap();
+    fn host(cpu: &str) -> crate::run::Host {
+        crate::run::Host {
+            uname: "Linux fake x86_64 GNU/Linux".into(),
+            cpu: cpu.into(),
         }
-        std::fs::write(tmp.path().join(FAILURES), failures).unwrap();
+    }
+
+    fn failed(wasm: &str, iteration: u32) -> Failed {
+        Failed {
+            wasm: wasm.into(),
+            iteration,
+            reason: "exit status: 1".into(),
+        }
+    }
+
+    /// Write the given `(file name, rows)` and a manifest into `dir`.
+    fn write_shard(dir: &Path, files: &[(&str, &str)], manifest: &Manifest) {
+        std::fs::create_dir_all(dir).unwrap();
+        for (name, rows) in files {
+            std::fs::write(dir.join(name), format!("{HEADER}{rows}")).unwrap();
+        }
+        std::fs::write(dir.join(MANIFEST), toml::to_string(manifest).unwrap()).unwrap();
+    }
+
+    /// An unsharded scratch dir with the given `(file name, rows)` and
+    /// failures.
+    fn scratch(files: &[(&str, &str)], failed: Vec<Failed>) -> tempfile::TempDir {
+        let tmp = tempfile::tempdir().unwrap();
+        let manifest = Manifest {
+            index: 0,
+            count: 1,
+            host: host("Fake CPU"),
+            failed,
+        };
+        write_shard(tmp.path(), files, &manifest);
         tmp
     }
 
@@ -333,13 +414,13 @@ mod tests {
                     "x86_64,wasmtime,-Cfoo,../../benchmarks/b/benchmark.wasm,Compilation,virtual-cycles,11\n",
                 ),
             ],
-            "\"c/c.wasm\" = \"iteration 0: exit status: 1\"\n",
+            vec![failed("c/c.wasm", 0)],
         )
     }
 
     fn options(scratch: &Path) -> Options {
         Options {
-            scratch: scratch.to_path_buf(),
+            scratch: vec![scratch.to_path_buf()],
             wasmtime_commit: "0123456789abcdef0123456789abcdef01234567".into(),
             wasmtime_commit_date: "2026-10-09T22:41:05Z".parse().unwrap(),
             started: "2026-10-10T03:17:00Z".parse().unwrap(),
@@ -422,7 +503,7 @@ mod tests {
     #[test]
     fn merges_and_normalizes() {
         let scratch = two_units();
-        let merged = merge(scratch.path()).unwrap();
+        let merged = merge(&[scratch.path().to_path_buf()]).unwrap();
         let rows: Vec<String> = merged
             .iter()
             .map(|m| {
@@ -459,9 +540,9 @@ mod tests {
                 "x.000.csv",
                 "x86_64,wasmtime,,/elsewhere/x.wasm,Execution,virtual-cycles,1\n",
             )],
-            "",
+            vec![],
         );
-        assert!(merge(scratch.path()).is_err());
+        assert!(merge(&[scratch.path().to_path_buf()]).is_err());
     }
 
     #[test]
@@ -486,6 +567,7 @@ mod tests {
             Some("https://example.com/run/1")
         );
         assert_eq!(metadata.environment.cpu, "Fake CPU");
+        assert_eq!(metadata.environment.uname, "Linux fake x86_64 GNU/Linux");
         assert_eq!(metadata.finished.to_string(), "2026-10-10T04:00:00Z");
         assert_eq!(metadata.config.iterations, 6);
         assert_eq!(
@@ -598,7 +680,7 @@ mod tests {
         let scratch = two_units();
         let gzip = || {
             let mut out = Vec::new();
-            runs::write_csv_gz(&merge(scratch.path()).unwrap(), &mut out).unwrap();
+            runs::write_csv_gz(&merge(&[scratch.path().to_path_buf()]).unwrap(), &mut out).unwrap();
             out
         };
         let first = gzip();
@@ -624,7 +706,7 @@ mod tests {
     #[test]
     fn no_rows_is_an_error() {
         let root = fixture_root();
-        let scratch = scratch(&[], "\"a/a.wasm\" = \"boom\"\n");
+        let scratch = scratch(&[], vec![failed("a/a.wasm", 0)]);
         let err = record(
             root.path(),
             &options(scratch.path()),
@@ -636,6 +718,120 @@ mod tests {
             err.to_string().contains("no benchmark produced any rows"),
             "{err}"
         );
+    }
+
+    /// Three shards of a six-iteration run of `a/a.wasm`, each count its
+    /// iteration, in directories listed out of shard order.
+    fn three_shards(cpus: [&str; 3]) -> (tempfile::TempDir, Vec<PathBuf>) {
+        let tmp = tempfile::tempdir().unwrap();
+        let mut dirs = Vec::new();
+        for index in [2u32, 0, 1] {
+            let dir = tmp.path().join(format!("shard-{index}"));
+            let files: Vec<(String, String)> = [index, index + 3]
+                .iter()
+                .map(|&i| {
+                    (
+                        format!("a__a.wasm.{i:03}.csv"),
+                        format!("x86_64,wasmtime,,a/a.wasm,Execution,virtual-cycles,{i}\n"),
+                    )
+                })
+                .collect();
+            let files: Vec<(&str, &str)> = files
+                .iter()
+                .map(|(n, r)| (n.as_str(), r.as_str()))
+                .collect();
+            let failed = match index {
+                0 => vec![failed("b/b.wasm", 3)],
+                2 => vec![failed("b/b.wasm", 2)],
+                _ => vec![],
+            };
+            let manifest = Manifest {
+                index,
+                count: 3,
+                host: host(cpus[index as usize]),
+                failed,
+            };
+            write_shard(&dir, &files, &manifest);
+            dirs.push(dir);
+        }
+        (tmp, dirs)
+    }
+
+    #[test]
+    fn records_three_shards() {
+        let root = fixture_root();
+        let (_tmp, dirs) = three_shards(["CPU A", "CPU B", "CPU A"]);
+        let options = Options {
+            scratch: dirs,
+            ..options(Path::new(""))
+        };
+        let run = record(root.path(), &options, &FakeProbe::default(), None).unwrap();
+        let data = DataDir::new(root.path());
+        let counts: Vec<u64> = data
+            .measurements(run)
+            .unwrap()
+            .iter()
+            .map(|m| m.count)
+            .collect();
+        // Iteration order, whichever shard measured each.
+        assert_eq!(counts, [0, 1, 2, 3, 4, 5]);
+        let metadata = data.metadata(run).unwrap();
+        assert_eq!(metadata.environment.cpu, "CPU A; CPU B");
+        assert_eq!(metadata.environment.uname, "Linux fake x86_64 GNU/Linux");
+        // Failures from different shards merge in iteration order.
+        assert_eq!(
+            metadata.failures,
+            [(
+                "b/b.wasm".to_string(),
+                "iteration 2: exit status: 1; iteration 3: exit status: 1".to_string()
+            )]
+            .into()
+        );
+    }
+
+    #[test]
+    fn rejects_incomplete_shards() {
+        let root = fixture_root();
+        let (tmp, dirs) = three_shards(["CPU"; 3]);
+        let record_dirs = |scratch: Vec<PathBuf>| {
+            let options = Options {
+                scratch,
+                ..options(Path::new(""))
+            };
+            record(root.path(), &options, &FakeProbe::default(), None)
+                .unwrap_err()
+                .to_string()
+        };
+        // Missing shard 2.
+        let err = record_dirs(dirs[1..].to_vec());
+        assert!(err.contains("found shards 0/3, 1/3"), "{err}");
+        // Shard 2 twice, and no shard 1.
+        let err = record_dirs(vec![dirs[0].clone(), dirs[0].clone(), dirs[1].clone()]);
+        assert!(err.contains("found shards 0/3, 2/3, 2/3"), "{err}");
+        // A shard of a different split.
+        let other = tmp.path().join("other");
+        write_shard(
+            &other,
+            &[],
+            &Manifest {
+                index: 1,
+                count: 2,
+                host: host("CPU"),
+                failed: vec![],
+            },
+        );
+        let err = record_dirs(vec![dirs[1].clone(), dirs[2].clone(), other]);
+        assert!(err.contains("each shard of one run exactly once"), "{err}");
+        assert_eq!(data_entries(root.path()), ["00001", "00003"]);
+    }
+
+    fn data_entries(root: &Path) -> Vec<String> {
+        let mut entries: Vec<String> = std::fs::read_dir(root.join("benchmark-data"))
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        entries.sort();
+        entries
     }
 
     #[test]
