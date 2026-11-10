@@ -115,9 +115,20 @@ jobs:
           revision: ${{ steps.check.outputs.sha }}
           out: ${{ runner.temp }}/bin/engine
 
+      # `sightglass-cli` compiles its Valgrind client requests against
+      # Valgrind's headers. Without them it silently builds stubs that abort at
+      # run time, so install Valgrind first. Naming the include directory also
+      # rebuilds a cached build that was made without them.
+      - name: Install Valgrind
+        if: steps.check.outputs.skip == 'false'
+        uses: ./.github/actions/install-valgrind
+
       - name: Build sightglass-cli
         if: steps.check.outputs.skip == 'false'
+        env:
+          VALGRIND_REQUESTS_VALGRIND_INCLUDE: /usr/include
         run: |
+          test -f "$VALGRIND_REQUESTS_VALGRIND_INCLUDE/valgrind/valgrind.h"
           cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
           cp target/release/awfy sightglass/target/release/sightglass-cli "$RUNNER_TEMP/bin/"
 
