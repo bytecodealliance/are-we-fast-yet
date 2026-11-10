@@ -1,9 +1,9 @@
 # Workflows
 
-* `benchmark.yml`: run, record, push, and file regressions, every hour. A
+* `benchmark.yml`: run, record, push, and bisect regressions, every hour. A
   `concurrency` group keeps one writer, so run numbers allocated at record
   time never collide, and a run that overruns its slot queues the next rather
-  than racing it. Filing comes after the push, so its failure never loses
+  than racing it. The bisect starts after the push, so its failure never loses
   data. Its jobs:
   * `prepare` picks the Wasmtime commit, or skips if it was already measured,
     and builds `awfy`, the engine, and `sightglass-cli` once.
@@ -12,7 +12,14 @@
     those binaries and uploading its scratch directory.
   * `record` passes every shard's scratch directory to `awfy record`, which
     refuses a run missing a shard, then pushes, checks for regressions, and
-    files the issue.
+    starts `bisect.yml` if it finds any.
+* `bisect.yml`: attribute a run's regressions to commits and file the issue.
+  See [regressions.md](regressions.md). It has no `concurrency` group, so it
+  never holds up the next benchmark run. `plan` writes the matrix, `measure`
+  runs one job per candidate commit, and `report` runs even when those fail,
+  so a failed bisect still files the range issue. Bisect jobs restore the
+  Wasmtime build cache but never save it, so they don't evict the benchmark
+  lane's entry.
 * `pages.yml`: build and deploy the site. `benchmark.yml` calls it directly,
   since pushes made with `GITHUB_TOKEN` don't trigger workflows. Pages' source
   must be "GitHub Actions".

@@ -20,6 +20,18 @@ individual = 0.05
 geomean = 0.002
 individual = 0.01
 
+[bisect]
+# Callgrind iterations per side when bisecting a regression. Enough to tell
+# "no change" from the detected regression, which the main run already showed
+# to be significant. See docs/regressions.md.
+iterations = 2
+# A commit is blamed when its own change is at least this share of the
+# detected change, in log terms.
+blame-share = 0.25
+# The blamed commits account for the regression when their changes sum to
+# within this share of the detected change.
+completeness-tolerance = 0.25
+
 [site]
 base-url = "https://bytecodealliance.github.io/are-we-fast-yet/"
 repo = "bytecodealliance/are-we-fast-yet"

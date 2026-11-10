@@ -1,9 +1,10 @@
 # Architecture
 
 A GitHub Actions run every hour benchmarks Wasmtime `main` under
-Sightglass's callgrind measure, commits the raw results, files an issue on
-`bytecodealliance/wasmtime` for significant virtual-cycles regressions, and
-deploys trend plots to GitHub Pages. A run that finds Wasmtime `main`
+Sightglass's callgrind measure, commits the raw results, and deploys trend
+plots to GitHub Pages. For significant virtual-cycles regressions, it bisects
+the run's range and files an issue on `bytecodealliance/wasmtime` naming the
+commits responsible. A run that finds Wasmtime `main`
 unchanged since the last one exits early, so the schedule sets how soon a new
 commit is measured, not how many runs are recorded.
 

@@ -64,11 +64,50 @@ reporting less; the two are currently 6 and 0.01.
 Each run's noise is also reported: how far its counts spread, as a percentage
 of the median. See [site.md](site.md).
 
+## Bisect
+
+A run's comparison spans every commit since its baseline, and on a noisy pair
+of runners it can be wrong. So a run with regressions files nothing itself:
+it starts `bisect.yml`, which measures each first-parent commit in the range
+against its own parent, all at once, one job per commit, and files only what
+that confirms.
+
+* **Plan.** `awfy bisect-plan` lists the candidates and the (benchmark,
+  phase) pairs to measure: each regressed benchmark in the phase it regressed,
+  and for a regressed Geomean, every benchmark the run measured, in that phase
+  only. `awfy run --pair` passes Sightglass `--benchmark-phase`, so the other
+  phases are never measured.
+* **Measure.** Each job builds the candidate and its parent and measures both
+  on the same runner, at `[bisect] iterations` each, so host effects cancel.
+  Two iterations suffice: the main run already found the regression
+  significant, and the bisect only has to tell "no change" from it.
+* **Attribute.** `awfy bisect-report` takes each candidate's own ratio,
+  candidate over parent, for each regressed pair, recomputing a Geomean the
+  way the main run does. In log terms, with `d` the detected change:
+  * a candidate is **blamed** when its change is at least `blame-share` of
+    `d`;
+  * the pair is **complete** when the candidates' changes sum to within
+    `completeness-tolerance` of `d`;
+  * the pair is **confirmed** when any candidate is blamed, or the changes sum
+    to within that tolerance of `d` (creep across several commits).
+
+| Outcome | Action |
+|---|---|
+| A pair is confirmed | File the issue, naming the blamed commits and each one's share |
+| Every candidate was measured and no pair is confirmed | File nothing; the job summary reports an unconfirmed detection |
+| No plan, nothing measured, or unmeasured candidates and no confirmation | File the range issue, so a real regression is never lost |
+
+The thresholds are starting points to tune against real regressions.
+
 ## Issue
 
-The title ends in `(are-we-fast-yet run NNNNN)`, which is the idempotency key:
-the workflow files nothing if an issue with that suffix exists. A regression is
-reported once; later runs compare against the regressed baseline.
+`bisect.yml` files it. The title names the blamed commit and its PR, or how
+many commits were blamed, and ends in `(are-we-fast-yet run NNNNN)`, which is
+the idempotency key: the workflow files nothing if an issue with that suffix
+exists. A regression is reported once; later runs compare against the
+regressed baseline. The body opens with the bisect's attribution and links its
+workflow run, and its reproduce section builds the blamed commit and its
+parent when one commit is blamed.
 
 The issue body and the job summary share their run links, regressions and
 speedups tables, and Wasmtime commit links. Each table reports each change as a signed percent with its confidence

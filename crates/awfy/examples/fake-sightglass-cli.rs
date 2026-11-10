@@ -2,7 +2,8 @@
 //! canned raw CSV for the one benchmark it is given, without Valgrind.
 //!
 //! Fails if the wasm path contains `$FAKE_SIGHTGLASS_FAIL`. Counts are
-//! `$FAKE_SIGHTGLASS_BASE` (default 1000000) scaled per phase and event.
+//! `$FAKE_SIGHTGLASS_BASE` (default 1000000) scaled per phase and event. With
+//! `--benchmark-phase`, writes only that phase's rows.
 
 use std::path::PathBuf;
 
@@ -25,6 +26,10 @@ fn main() {
     assert_eq!(value("--iters"), "1");
     assert_eq!(value("--measure"), "callgrind");
     let wasm = args.last().unwrap();
+    let only = args
+        .iter()
+        .position(|a| a == "--benchmark-phase")
+        .map(|i| args[i + 1].to_lowercase());
 
     let fail = std::env::var("FAKE_SIGHTGLASS_FAIL").unwrap_or_default();
     if !fail.is_empty() && wasm.contains(&fail) {
@@ -38,6 +43,12 @@ fn main() {
         .unwrap_or(1_000_000);
     let mut csv = String::from("arch,engine,engine_flags,wasm,phase,event,count\n");
     for (phase, scale) in [("Compilation", 1), ("Instantiation", 0), ("Execution", 2)] {
+        if only
+            .as_ref()
+            .is_some_and(|only| *only != phase.to_lowercase())
+        {
+            continue;
+        }
         for (event, fraction) in [("virtual-cycles", 1.0), ("instructions-retired", 0.5)] {
             let count = ((base << scale) as f64 * fraction) as u64;
             csv += &format!("x86_64,{name},{flags},{wasm},{phase},{event},{count}\n");

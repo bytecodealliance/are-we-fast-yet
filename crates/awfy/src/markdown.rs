@@ -9,7 +9,7 @@ use crate::slug::slug;
 use std::fmt::{Result, Write as _};
 
 /// The Wasmtime repository URL on github.
-const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
+pub(crate) const WASMTIME_REPO: &str = "https://github.com/bytecodealliance/wasmtime";
 
 /// Most commits listed.
 const MAX_COMMITS: usize = 50;
@@ -189,18 +189,21 @@ pub(crate) fn commits(s: &mut String, old: &str, new: &str, log: Option<&[Commit
         return Ok(());
     };
     for c in log.iter().take(MAX_COMMITS) {
-        writeln!(
-            s,
-            "* [`{}` {}]({WASMTIME_REPO}/commit/{})",
-            short(&c.commit),
-            escape(&c.subject),
-            c.commit
-        )?;
+        writeln!(s, "* {}", commit_link(&c.commit, &c.subject))?;
     }
     if log.len() > MAX_COMMITS {
         writeln!(s, "* ... and {} more", log.len() - MAX_COMMITS)?;
     }
     writeln!(s)
+}
+
+/// A commit's short SHA and subject, linked to it on GitHub.
+pub(crate) fn commit_link(commit: &str, subject: &str) -> String {
+    format!(
+        "[`{}` {}]({WASMTIME_REPO}/commit/{commit})",
+        short(commit),
+        escape(subject)
+    )
 }
 
 /// Escape a commit subject for a Markdown link's text. Brackets end the link
@@ -296,6 +299,6 @@ fn percent(x: f64) -> String {
 }
 
 /// Get a string describing the given ratio `x` as a signed percent.
-fn signed_percent(x: f64) -> String {
+pub(crate) fn signed_percent(x: f64) -> String {
     format!("{:+.2}%", x * 100.0)
 }

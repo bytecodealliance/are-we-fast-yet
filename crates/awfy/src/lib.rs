@@ -3,6 +3,7 @@
 
 #![deny(missing_docs)]
 
+pub mod bisect;
 pub mod config;
 mod fingerprint;
 pub mod git;

@@ -1,11 +1,13 @@
 # Tokens and permissions
 
-Workflows use `GITHUB_TOKEN` with per-workflow `permissions:`. During rollout,
-issues go to this repo, so that token files them too.
+Workflows use `GITHUB_TOKEN` with per-workflow `permissions:`. `benchmark.yml`
+needs `actions: write` to start `bisect.yml`, which files the issues. When
+`regressions.issue-repo` is this repo, `GITHUB_TOKEN` files them too.
 
 ## GitHub App
 
-The only extra credential. It files issues on `bytecodealliance/wasmtime`.
+The only extra credential. `bisect.yml` uses it to file issues on
+`bytecodealliance/wasmtime`.
 Unlike a personal token, it belongs to no person, is limited to one permission
 on one repo, and mints short-lived tokens.
 

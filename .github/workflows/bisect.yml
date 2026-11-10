@@ -1,0 +1,262 @@
+name: Bisect
+
+# Started by `benchmark.yml` when a run regresses. Measures every commit in the
+# run's range beside its parent, then files the issue naming the commits that
+# reproduce the regression, or files nothing if none does. See
+# docs/regressions.md.
+#
+# No concurrency group: bisects only read recorded data and file at most one
+# issue each, keyed by run.
+
+on:
+  workflow_dispatch:
+    inputs:
+      run:
+        description: The regressed run to bisect, e.g. 00042.
+        type: string
+        required: true
+      dry-run:
+        description: Upload the would-be issue as an artifact instead of filing it.
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+  WASMTIME_REPO: https://github.com/bytecodealliance/wasmtime
+  RUN: ${{ inputs.run }}
+
+jobs:
+  plan:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    outputs:
+      matrix: ${{ steps.plan.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/rust-cache
+        with:
+          workspaces: |
+            .
+            sightglass
+
+      - name: Build awfy and sightglass-cli
+        run: |
+          cargo build --release -p awfy
+          cargo build --release --manifest-path sightglass/Cargo.toml -p sightglass-cli
+          mkdir -p "$RUNNER_TEMP/bin"
+          cp target/release/awfy sightglass/target/release/sightglass-cli "$RUNNER_TEMP/bin/"
+
+      # Treeless: enough for the first-parent log.
+      - name: Clone Wasmtime
+        run: git clone --filter=tree:0 --no-checkout "$WASMTIME_REPO" "$RUNNER_TEMP/wasmtime"
+
+      - name: awfy bisect-plan
+        id: plan
+        run: |
+          matrix=$(target/release/awfy bisect-plan --run "$RUN" \
+            --wasmtime-repo "$RUNNER_TEMP/wasmtime" \
+            --out "$RUNNER_TEMP/plan")
+          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: plan
+          path: ${{ runner.temp }}/plan
+          if-no-files-found: error
+          retention-days: 30
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: binaries
+          path: ${{ runner.temp }}/bin
+          if-no-files-found: error
+          retention-days: 7
+
+  # One job per candidate, measuring it and its parent on the same runner so
+  # the host effect cancels out.
+  measure:
+    needs: plan
+    runs-on: ubuntu-24.04
+    timeout-minutes: 240
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.plan.outputs.matrix) }}
+    env:
+      COMMIT: ${{ matrix.commit }}
+      PARENT: ${{ matrix.parent }}
+      PAIRS: ${{ matrix.pairs }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - name: Install Valgrind
+        uses: ./.github/actions/install-valgrind
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: binaries
+          path: ${{ runner.temp }}/bin
+
+      # Restore only: one multi-GB entry per candidate would evict the
+      # benchmark lane's.
+      - name: Restore Wasmtime build
+        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ${{ runner.temp }}/wasmtime-build
+          key: wasmtime-build-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-${{ matrix.parent }}
+          restore-keys: wasmtime-build-${{ runner.os }}-${{ hashFiles('rust-toolchain.toml') }}-
+
+      - name: Build parent engine
+        uses: ./.github/actions/build-engine
+        with:
+          revision: ${{ matrix.parent }}
+          out: ${{ runner.temp }}/parent-engine
+
+      - name: Build candidate engine
+        uses: ./.github/actions/build-engine
+        with:
+          revision: ${{ matrix.commit }}
+          out: ${{ runner.temp }}/candidate-engine
+
+      # Both sides at once, half the cores each.
+      - name: awfy run
+        run: |
+          chmod +x "$RUNNER_TEMP/bin/awfy" "$RUNNER_TEMP/bin/sightglass-cli"
+          iterations=$("$RUNNER_TEMP/bin/awfy" config bisect.iterations)
+          per_side=$(( $(nproc) / 2 ))
+          per_side=$(( per_side > 0 ? per_side : 1 ))
+          pairs=()
+          for pair in $PAIRS; do
+            pairs+=(--pair "$pair")
+          done
+          out="$RUNNER_TEMP/results/bisect-$COMMIT"
+          for side in parent candidate; do
+            "$RUNNER_TEMP/bin/awfy" run \
+              --engine "$RUNNER_TEMP/$side-engine/libengine.so" \
+              --sightglass-cli "$RUNNER_TEMP/bin/sightglass-cli" \
+              --out "$out/$side" \
+              --iterations "$iterations" \
+              --jobs "$per_side" \
+              "${pairs[@]}" &
+          done
+          status=0
+          for pid in $(jobs -p); do
+            wait "$pid" || status=1
+          done
+          exit "$status"
+
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: bisect-${{ matrix.commit }}
+          path: ${{ runner.temp }}/results/bisect-${{ matrix.commit }}
+          if-no-files-found: error
+          retention-days: 30
+
+  # Runs even when planning or some candidates failed: a bisect that cannot
+  # attribute the regression still files the range issue, so a real
+  # regression is never lost.
+  report:
+    needs: [plan, measure]
+    if: always() && !cancelled()
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      contents: read
+      # Regression issues go to this repo during rollout. See docs/tokens.md.
+      issues: write
+    env:
+      DRY_RUN: ${{ inputs.dry-run && 'true' || 'false' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          submodules: recursive
+
+      - uses: ./.github/actions/rust-cache
+
+      - run: cargo build --release -p awfy
+
+      - name: Clone Wasmtime
+        run: git clone --filter=tree:0 --no-checkout "$WASMTIME_REPO" "$RUNNER_TEMP/wasmtime"
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          name: plan
+          path: ${{ runner.temp }}/plan
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        continue-on-error: true
+        with:
+          pattern: bisect-*
+          path: ${{ runner.temp }}/results
+
+      - name: awfy bisect-report
+        id: report
+        run: |
+          mkdir -p "$RUNNER_TEMP/results"
+          target/release/awfy bisect-report --run "$RUN" \
+            --plan "$RUNNER_TEMP/plan/plan.json" \
+            --results "$RUNNER_TEMP/results" \
+            --summary "$GITHUB_STEP_SUMMARY" \
+            --issue-dir "$RUNNER_TEMP/issue" \
+            --wasmtime-repo "$RUNNER_TEMP/wasmtime" \
+            --workflow-run "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          if [ -f "$RUNNER_TEMP/issue/title.txt" ]; then
+            repo=$(target/release/awfy config regressions.issue-repo)
+            {
+              echo "found=true"
+              echo "repo=$repo"
+              echo "labels=$(target/release/awfy config regressions.issue-labels)"
+              echo "owner=${repo%%/*}"
+              echo "name=${repo#*/}"
+              echo "key=$(target/release/awfy issue-key --run "$RUN")"
+            } >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload dry-run results
+        if: steps.report.outputs.found == 'true' && env.DRY_RUN == 'true'
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: dry-run-bisect-${{ inputs.run }}
+          path: ${{ runner.temp }}/issue
+          if-no-files-found: error
+
+      # Only for issues outside this repo; GITHUB_TOKEN covers this one.
+      - name: Mint App token
+        if: steps.report.outputs.found == 'true' && env.DRY_RUN == 'false' && steps.report.outputs.repo != github.repository
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ vars.AWFY_APP_ID }}
+          private-key: ${{ secrets.AWFY_APP_PRIVATE_KEY }}
+          owner: ${{ steps.report.outputs.owner }}
+          repositories: ${{ steps.report.outputs.name }}
+          permission-issues: write
+
+      - name: File issue
+        if: steps.report.outputs.found == 'true' && env.DRY_RUN == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
+          REPO: ${{ steps.report.outputs.repo }}
+          KEY: ${{ steps.report.outputs.key }}
+          LABELS: ${{ steps.report.outputs.labels }}
+        run: |
+          # Idempotency: skip if a re-run already filed this run's issue.
+          existing=$(gh issue list --repo "$REPO" --state all --search "\"$KEY\" in:title" \
+            --json title,author \
+            --jq "map(select(.author.is_bot and (.title | endswith(\"$KEY\")))) | length")
+          if [ "$existing" != 0 ]; then
+            echo "An issue ending in $KEY already exists in $REPO."
+            exit 0
+          fi
+          gh issue create --repo "$REPO" \
+            --title "$(cat "$RUNNER_TEMP/issue/title.txt")" \
+            --body-file "$RUNNER_TEMP/issue/body.md" \
+            ${LABELS:+--label "$LABELS"}

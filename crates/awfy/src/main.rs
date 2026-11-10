@@ -40,6 +40,16 @@ enum Command {
     /// Writes a Markdown job summary. With `--issue-dir`, also writes
     /// `title.txt` and `body.md` there if there are regressions.
     Regressions(awfy::regressions::Options),
+    /// Plan the bisect of a regressed run: write `plan.json` to `--out` and
+    /// print the GitHub Actions matrix, one job per candidate commit.
+    BisectPlan(awfy::bisect::PlanOptions),
+    /// Attribute a regressed run's regressions to commits from the bisect's
+    /// measurements.
+    ///
+    /// Writes a Markdown job summary. With `--issue-dir`, also writes
+    /// `title.txt` and `body.md` there unless no commit reproduced the
+    /// regression.
+    BisectReport(awfy::bisect::ReportOptions),
     /// Print the title suffix that identifies a run's regression issue.
     IssueKey {
         #[arg(long)]
@@ -63,6 +73,8 @@ fn main() -> Result<()> {
         Command::Run(options) => awfy::run::run(&cli.root, options),
         Command::Record(options) => awfy::record::run(&cli.root, options),
         Command::Regressions(options) => awfy::regressions::run(&cli.root, options),
+        Command::BisectPlan(options) => awfy::bisect::plan_command(&cli.root, options),
+        Command::BisectReport(options) => awfy::bisect::report_command(&cli.root, options),
         Command::IssueKey { run } => {
             println!("{}", awfy::issue::issue_key(run));
             Ok(())

@@ -181,8 +181,8 @@ jobs:
     timeout-minutes: 60
     permissions:
       contents: write
-      # Regression issues go to this repo during rollout. See docs/tokens.md.
-      issues: write
+      # To start `bisect.yml`.
+      actions: write
     outputs:
       run: ${{ steps.record.outputs.run }}
     env:
@@ -266,17 +266,11 @@ jobs:
             --issue-dir "$RUNNER_TEMP/issue" \
             --wasmtime-repo "$RUNNER_TEMP/wasmtime"
           if [ -f "$RUNNER_TEMP/issue/title.txt" ]; then
-            repo=$(target/release/awfy config regressions.issue-repo)
-            {
-              echo "found=true"
-              echo "repo=$repo"
-              echo "labels=$(target/release/awfy config regressions.issue-labels)"
-              echo "owner=${repo%%/*}"
-              echo "name=${repo#*/}"
-              echo "key=$(target/release/awfy issue-key --run "$RUN")"
-            } >> "$GITHUB_OUTPUT"
+            echo "found=true" >> "$GITHUB_OUTPUT"
           fi
 
+      # A dry run uploads the range issue a regression would have been
+      # bisected from.
       - name: Upload dry-run results
         if: env.DRY_RUN == 'true'
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -287,38 +281,16 @@ jobs:
             ${{ runner.temp }}/issue
           if-no-files-found: error
 
-      # Only for issues outside this repo; GITHUB_TOKEN covers this one.
-      - name: Mint App token
-        if: steps.regressions.outputs.found == 'true' && env.DRY_RUN == 'false' && steps.regressions.outputs.repo != github.repository
-        id: app-token
-        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
-        with:
-          client-id: ${{ vars.AWFY_APP_ID }}
-          private-key: ${{ secrets.AWFY_APP_PRIVATE_KEY }}
-          owner: ${{ steps.regressions.outputs.owner }}
-          repositories: ${{ steps.regressions.outputs.name }}
-          permission-issues: write
-
-      - name: File issue
+      # The bisect files the issue, if it confirms the regression. Its own
+      # workflow, so the next benchmark run doesn't wait for it.
+      - name: Start bisect
         if: steps.regressions.outputs.found == 'true' && env.DRY_RUN == 'false'
         env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token || github.token }}
-          REPO: ${{ steps.regressions.outputs.repo }}
-          KEY: ${{ steps.regressions.outputs.key }}
-          LABELS: ${{ steps.regressions.outputs.labels }}
+          GH_TOKEN: ${{ github.token }}
+          RUN: ${{ steps.record.outputs.run }}
         run: |
-          # Idempotency: skip if a re-run already filed this run's issue.
-          existing=$(gh issue list --repo "$REPO" --state all --search "\"$KEY\" in:title" \
-            --json title,author \
-            --jq "map(select(.author.is_bot and (.title | endswith(\"$KEY\")))) | length")
-          if [ "$existing" != 0 ]; then
-            echo "An issue ending in $KEY already exists in $REPO."
-            exit 0
-          fi
-          gh issue create --repo "$REPO" \
-            --title "$(cat "$RUNNER_TEMP/issue/title.txt")" \
-            --body-file "$RUNNER_TEMP/issue/body.md" \
-            ${LABELS:+--label "$LABELS"}
+          gh workflow run bisect.yml --repo "$GITHUB_REPOSITORY" --ref main -f run="$RUN"
+          echo "Regressions found; started a bisect of run $RUN." >> "$GITHUB_STEP_SUMMARY"
 
   pages:
     needs: record

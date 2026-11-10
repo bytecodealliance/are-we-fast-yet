@@ -12,4 +12,6 @@ and the site's JS.
 * **Site:** `node --test` for pure modules and Playwright against the fixture
   site.
 * **Workflows:** dispatch `benchmark.yml` from a branch with `dry-run` and a
-  one-benchmark `suite`, then inspect the artifacts.
+  one-benchmark `suite`, then inspect the artifacts. Dispatch `bisect.yml`
+  with `dry-run` and a recorded run that regressed, and inspect its job
+  summary and issue artifact.

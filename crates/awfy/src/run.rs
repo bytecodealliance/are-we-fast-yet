@@ -2,8 +2,9 @@
 //! `sightglass-cli` invocations, `--jobs` at a time. Each (benchmark,
 //! iteration index) unit writes its own CSV to the output directory, longest
 //! benchmark first as estimated from `benchmark-data/`. With `--shard`, only
-//! that shard's iterations run, so several hosts can split a run. See
-//! `docs/architecture.md`.
+//! that shard's iterations run, so several hosts can split a run. With
+//! `--pair`, only the given (benchmark, phase) pairs run, each measuring just
+//! that phase, as a bisect needs. See `docs/architecture.md`.
 
 use crate::config::Config;
 use crate::runs::DataDir;
@@ -133,8 +134,43 @@ pub struct Failed {
     pub wasm: String,
     /// The iteration that failed.
     pub iteration: u32,
+    /// The one phase the unit measured, or `None` for every phase.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub phase: Option<Phase>,
     /// A short reason.
     pub reason: String,
+}
+
+/// A benchmark measured in just one phase, written `phase:wasm`, e.g.
+/// `execution:bz2/benchmark.wasm`.
+#[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord)]
+pub struct Pair {
+    /// The phase to measure.
+    pub phase: Phase,
+    /// The benchmark, relative to `sightglass/benchmarks/`.
+    pub wasm: String,
+}
+
+impl fmt::Display for Pair {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}:{}", self.phase, self.wasm)
+    }
+}
+
+impl std::str::FromStr for Pair {
+    type Err = anyhow::Error;
+    fn from_str(s: &str) -> Result<Self> {
+        let (phase, wasm) = s.split_once(':').with_context(|| {
+            format!("invalid pair `{s}`; expected e.g. `execution:bz2/benchmark.wasm`")
+        })?;
+        anyhow::ensure!(!wasm.is_empty(), "invalid pair `{s}`: no benchmark");
+        Ok(Self {
+            phase: phase
+                .parse()
+                .map_err(|e| anyhow::anyhow!("invalid pair `{s}`: {e}"))?,
+            wasm: wasm.to_string(),
+        })
+    }
 }
 
 /// Options for the `awfy run` command.
@@ -152,6 +188,10 @@ pub struct Options {
     /// Suite to run instead of `config.toml`'s, relative to `sightglass/`.
     #[arg(long)]
     suite: Option<PathBuf>,
+    /// Run just this benchmark, measuring just this phase, instead of a
+    /// suite, e.g. `execution:bz2/benchmark.wasm`. Repeatable.
+    #[arg(long = "pair", conflicts_with = "suite")]
+    pairs: Vec<Pair>,
     /// Iterations per benchmark instead of `config.toml`'s. Recorded in
     /// metadata by `awfy record --iterations`.
     #[arg(long)]
@@ -164,23 +204,36 @@ pub struct Options {
     shard: Shard,
 }
 
-/// One `sightglass-cli` invocation: one iteration of a benchmark.
+/// What to measure: a benchmark, in every phase or just one.
 #[derive(Clone, Debug, PartialEq, Eq)]
-struct Unit {
+struct Target {
     /// Relative to `sightglass/benchmarks/`, or absolute if outside it.
     wasm: PathBuf,
-    /// Which iteration of its benchmark this unit is.
+    /// The one phase to measure, or `None` for every phase.
+    phase: Option<Phase>,
+}
+
+/// One `sightglass-cli` invocation: one iteration of a target.
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct Unit {
+    /// What to measure.
+    target: Target,
+    /// Which iteration of its target this unit is.
     iteration: u32,
 }
 
 impl Unit {
     /// The output file name.
     fn csv_name(&self) -> String {
-        let wasm = self.wasm.to_string_lossy();
+        let wasm = self.target.wasm.to_string_lossy();
         let wasm = wasm.trim_start_matches('/').replace('/', "__");
+        let phase = match self.target.phase {
+            Some(phase) => format!(".{phase}"),
+            None => String::new(),
+        };
         // The zero-padded iteration index keeps a benchmark's files in
         // iteration order when sorted.
-        format!("{wasm}.{:03}.csv", self.iteration)
+        format!("{wasm}{phase}.{:03}.csv", self.iteration)
     }
 }
 
@@ -250,17 +303,32 @@ fn run_with(
     anyhow::ensure!(jobs > 0, "--jobs must be at least 1");
     let root = std::path::absolute(root)?;
     let benchmarks_dir = root.join("sightglass/benchmarks");
-    // Lexically, so `..` means the same even if `sightglass` is a symlink.
-    let suite = normalize(
-        &root.join("sightglass").join(
-            options
-                .suite
-                .as_deref()
-                .unwrap_or(config.benchmark.suite.as_ref()),
-        ),
-    );
-    let wasms = parse_suite(&suite, &benchmarks_dir)?;
-    anyhow::ensure!(!wasms.is_empty(), "{} lists no benchmarks", suite.display());
+    let targets: Vec<Target> = if options.pairs.is_empty() {
+        // Lexically, so `..` means the same even if `sightglass` is a symlink.
+        let suite = normalize(
+            &root.join("sightglass").join(
+                options
+                    .suite
+                    .as_deref()
+                    .unwrap_or(config.benchmark.suite.as_ref()),
+            ),
+        );
+        let wasms = parse_suite(&suite, &benchmarks_dir)?;
+        anyhow::ensure!(!wasms.is_empty(), "{} lists no benchmarks", suite.display());
+        wasms
+            .into_iter()
+            .map(|wasm| Target { wasm, phase: None })
+            .collect()
+    } else {
+        options
+            .pairs
+            .iter()
+            .map(|p| Target {
+                wasm: p.wasm.clone().into(),
+                phase: Some(p.phase),
+            })
+            .collect()
+    };
 
     std::fs::create_dir_all(&options.out)
         .with_context(|| format!("creating {}", options.out.display()))?;
@@ -284,6 +352,7 @@ fn run_with(
         options.sightglass_cli.clone()
     };
 
+    let wasms: Vec<PathBuf> = targets.iter().map(|t| t.wasm.clone()).collect();
     let estimates = estimates(&DataDir::new(&root), &wasms).unwrap_or_else(|e| {
         log::warn!("running in suite order; could not estimate benchmark costs: {e:#}");
         Estimates::new()
@@ -294,7 +363,7 @@ fn run_with(
         wasms.len()
     );
     let units = schedule(
-        &wasms,
+        &targets,
         config.benchmark.iterations,
         options.shard,
         &estimates,
@@ -308,8 +377,8 @@ fn run_with(
 
     let total = units.len();
     log::info!(
-        "running {total} units ({} benchmarks x {} iterations, shard {}), {} at a time",
-        wasms.len(),
+        "running {total} units ({} targets x {} iterations, shard {}), {} at a time",
+        targets.len(),
         config.benchmark.iterations,
         options.shard,
         jobs
@@ -325,7 +394,15 @@ fn run_with(
             let Some((i, unit)) = queue.lock().unwrap().pop_front() else {
                 return Ok(());
             };
-            let name = format!("{} iteration {}", unit.wasm.display(), unit.iteration);
+            let phase = match unit.target.phase {
+                Some(phase) => format!(" {phase}"),
+                None => String::new(),
+            };
+            let name = format!(
+                "{}{phase} iteration {}",
+                unit.target.wasm.display(),
+                unit.iteration
+            );
             log::info!("[{}/{total}] started {name}", i + 1);
             let unit_start = Instant::now();
             let csv = out.join(unit.csv_name());
@@ -365,8 +442,9 @@ fn run_with(
     let mut failed: Vec<Failed> = failed
         .into_iter()
         .map(|(unit, reason)| Failed {
-            wasm: unit.wasm.to_string_lossy().into_owned(),
+            wasm: unit.target.wasm.to_string_lossy().into_owned(),
             iteration: unit.iteration,
+            phase: unit.target.phase,
             reason,
         })
         .collect();
@@ -408,8 +486,14 @@ fn command_line(config: &Config, engine: &Path, csv: &Path, unit: &Unit) -> Vec<
     args.push("wasmtime".into());
     // `=`, since the flags start with `-`.
     args.push(format!("--engine-flags-common={}", config.benchmark.engine_flags).into());
+    if let Some(phase) = unit.target.phase {
+        // Sightglass still runs the earlier phases, unmeasured, and writes
+        // only this one's rows.
+        args.push("--benchmark-phase".into());
+        args.push(phase.to_string().into());
+    }
     args.push("--".into());
-    args.push(unit.wasm.clone().into());
+    args.push(unit.target.wasm.clone().into());
     args
 }
 
@@ -441,16 +525,16 @@ fn short_reason(e: &anyhow::Error) -> String {
     }
 }
 
-/// Every unit in `shard`, longest benchmark first, so that a long one doesn't
-/// start last and stretch the run out behind it.
-fn schedule(wasms: &[PathBuf], iterations: u32, shard: Shard, estimates: &Estimates) -> Vec<Unit> {
-    let mut units: Vec<Unit> = wasms
+/// Every unit in `shard`, longest first, so that a long one doesn't start
+/// last and stretch the run out behind it.
+fn schedule(targets: &[Target], iterations: u32, shard: Shard, estimates: &Estimates) -> Vec<Unit> {
+    let mut units: Vec<Unit> = targets
         .iter()
-        .flat_map(|wasm| {
+        .flat_map(|target| {
             (0..iterations)
                 .filter(|&i| shard.runs(i))
                 .map(|iteration| Unit {
-                    wasm: wasm.clone(),
+                    target: target.clone(),
                     iteration,
                 })
         })
@@ -458,12 +542,23 @@ fn schedule(wasms: &[PathBuf], iterations: u32, shard: Shard, estimates: &Estima
     // An unestimated benchmark could be the longest of all, so schedule it as
     // if it were. The sort is stable, so ties keep suite order, and with no
     // estimates at all the schedule is suite order.
-    units.sort_by_key(|u| std::cmp::Reverse(estimates.get(&u.wasm).copied().unwrap_or(u64::MAX)));
+    units.sort_by_key(|u| std::cmp::Reverse(cost(estimates, &u.target).unwrap_or(u64::MAX)));
     units
 }
 
-/// What one iteration of a benchmark costs, keyed as `Unit::wasm` is.
-type Estimates = BTreeMap<PathBuf, u64>;
+/// What one iteration of each phase of a benchmark costs, keyed by
+/// `Target::wasm`.
+type Estimates = BTreeMap<PathBuf, BTreeMap<Phase, u64>>;
+
+/// What one iteration of `target` costs. Measuring one phase still runs the
+/// phases before it, so it costs them too.
+fn cost(estimates: &Estimates, target: &Target) -> Option<u64> {
+    let phases = estimates.get(&target.wasm)?;
+    Some(match target.phase {
+        Some(phase) => phases.range(..=phase).map(|(_, c)| c).sum(),
+        None => phases.values().sum(),
+    })
+}
 
 /// The event a unit's cost is measured in.
 const COST_EVENT: &str = "virtual-cycles";
@@ -503,17 +598,20 @@ fn estimates(data: &DataDir, wasms: &[PathBuf]) -> Result<Estimates> {
     Ok(estimates)
 }
 
-/// What one iteration of each benchmark in `measurements` costs: its median
-/// `COST_EVENT` count per phase, summed, since a unit runs every phase.
+/// What one iteration of each phase of each benchmark in `measurements`
+/// costs: its median `COST_EVENT` count.
 fn costs(measurements: &[Measurement<'_>]) -> Estimates {
     let mut samples: BTreeMap<(&str, Phase), Vec<u64>> = BTreeMap::new();
     for m in measurements.iter().filter(|m| m.event == COST_EVENT) {
         samples.entry((&m.wasm, m.phase)).or_default().push(m.count);
     }
     let mut costs = Estimates::new();
-    for ((wasm, _), mut counts) in samples {
+    for ((wasm, phase), mut counts) in samples {
         counts.sort_unstable();
-        *costs.entry(PathBuf::from(wasm)).or_default() += counts[counts.len() / 2];
+        costs
+            .entry(PathBuf::from(wasm))
+            .or_default()
+            .insert(phase, counts[counts.len() / 2]);
     }
     costs
 }
@@ -589,6 +687,10 @@ mod tests {
             [regressions.min-relative-change.execution]
             geomean = 0.002
             individual = 0.01
+            [bisect]
+            iterations = 2
+            blame-share = 0.25
+            completeness-tolerance = 0.25
             [site]
             base-url = "https://example.com/"
             repo = "a/b"
@@ -619,6 +721,7 @@ mod tests {
             sightglass_cli: "sightglass-cli".into(),
             out: root.join("out"),
             suite: None,
+            pairs: vec![],
             iterations: None,
             jobs: Some(2),
             shard: Shard::ALL,
@@ -701,7 +804,10 @@ mod tests {
     #[test]
     fn command_lines() {
         let unit = Unit {
-            wasm: "a/benchmark.wasm".into(),
+            target: Target {
+                wasm: "a/benchmark.wasm".into(),
+                phase: None,
+            },
             iteration: 2,
         };
         assert_eq!(unit.csv_name(), "a__benchmark.wasm.002.csv");
@@ -733,6 +839,82 @@ mod tests {
         .map(OsString::from)
         .to_vec();
         assert_eq!(args, expected);
+
+        let unit = Unit {
+            target: Target {
+                wasm: "a/benchmark.wasm".into(),
+                phase: Some(Phase::Execution),
+            },
+            iteration: 2,
+        };
+        assert_eq!(unit.csv_name(), "a__benchmark.wasm.execution.002.csv");
+        let args = command_line(
+            &config(),
+            Path::new("/e/libengine.so"),
+            Path::new("/out/x.csv"),
+            &unit,
+        );
+        let tail: Vec<&str> = args[args.len() - 4..]
+            .iter()
+            .map(|a| a.to_str().unwrap())
+            .collect();
+        assert_eq!(
+            tail,
+            ["--benchmark-phase", "execution", "--", "a/benchmark.wasm"]
+        );
+    }
+
+    #[test]
+    fn runs_only_the_given_pairs() {
+        let root = root();
+        let runner = FakeRunner {
+            fail: vec![("b/", 1)],
+            ..Default::default()
+        };
+        let options = Options {
+            pairs: vec![
+                "compilation:b/b.wasm".parse().unwrap(),
+                "execution:b/b.wasm".parse().unwrap(),
+            ],
+            iterations: Some(2),
+            ..options(root.path())
+        };
+        let mut config = config();
+        config.benchmark.iterations = 2;
+        let manifest = run_with(root.path(), &config, &options, &runner, host()).unwrap();
+        let mut files: Vec<String> = std::fs::read_dir(&options.out)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().into_string().unwrap())
+            .collect();
+        files.sort();
+        assert_eq!(
+            files,
+            [
+                "b__b.wasm.compilation.000.csv",
+                "b__b.wasm.execution.000.csv",
+                MANIFEST
+            ]
+        );
+        let failed: Vec<(u32, Option<Phase>)> = manifest
+            .failed
+            .iter()
+            .map(|f| (f.iteration, f.phase))
+            .collect();
+        assert_eq!(
+            failed,
+            [(1, Some(Phase::Compilation)), (1, Some(Phase::Execution))]
+        );
+    }
+
+    #[test]
+    fn pair_syntax() {
+        let pair: Pair = "Execution:bz2/benchmark.wasm".parse().unwrap();
+        assert_eq!(pair.phase, Phase::Execution);
+        assert_eq!(pair.wasm, "bz2/benchmark.wasm");
+        assert_eq!(pair.to_string(), "execution:bz2/benchmark.wasm");
+        for bad in ["bz2/benchmark.wasm", "running:bz2.wasm", "execution:"] {
+            assert!(bad.parse::<Pair>().is_err(), "{bad}");
+        }
     }
 
     #[test]
@@ -874,6 +1056,7 @@ mod tests {
         let failed = |wasm: &str, iteration| Failed {
             wasm: wasm.into(),
             iteration,
+            phase: None,
             reason: "exit status: 1: boom".into(),
         };
         let expected = [
@@ -977,6 +1160,25 @@ mod tests {
         tmp
     }
 
+    /// One iteration of every phase of `wasm`.
+    fn total(estimates: &Estimates, wasm: &str) -> u64 {
+        let target = Target {
+            wasm: wasm.into(),
+            phase: None,
+        };
+        cost(estimates, &target).unwrap()
+    }
+
+    fn targets(wasms: &[&str]) -> Vec<Target> {
+        wasms
+            .iter()
+            .map(|w| Target {
+                wasm: w.into(),
+                phase: None,
+            })
+            .collect()
+    }
+
     #[test]
     fn costs_sum_phase_medians() {
         let measurements: Vec<Measurement> = [
@@ -1006,8 +1208,22 @@ mod tests {
         }])
         .collect();
         let costs = costs(&measurements);
-        assert_eq!(costs[Path::new("a.wasm")], 330);
-        assert_eq!(costs[Path::new("b.wasm")], 7);
+        let target = |wasm: &str, phase| Target {
+            wasm: wasm.into(),
+            phase,
+        };
+        assert_eq!(cost(&costs, &target("a.wasm", None)), Some(330));
+        assert_eq!(cost(&costs, &target("b.wasm", None)), Some(7));
+        // Measuring a later phase still runs the earlier ones.
+        assert_eq!(
+            cost(&costs, &target("a.wasm", Some(Phase::Compilation))),
+            Some(30)
+        );
+        assert_eq!(
+            cost(&costs, &target("a.wasm", Some(Phase::Execution))),
+            Some(330)
+        );
+        assert_eq!(cost(&costs, &target("c.wasm", None)), None);
     }
 
     #[test]
@@ -1021,8 +1237,8 @@ mod tests {
         ]);
         let wasms = [PathBuf::from("a/benchmark.wasm"), PathBuf::from("b/b.wasm")];
         let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
-        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
-        assert_eq!(estimates[Path::new("b/b.wasm")], 200);
+        assert_eq!(total(&estimates, "a/benchmark.wasm"), 100);
+        assert_eq!(total(&estimates, "b/b.wasm"), 200);
     }
 
     #[test]
@@ -1041,7 +1257,7 @@ mod tests {
             PathBuf::from("c/c.wasm"),
         ];
         let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
-        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 5);
+        assert_eq!(total(&estimates, "a/benchmark.wasm"), 5);
         // Beyond the lookback.
         assert!(!estimates.contains_key(Path::new("b/b.wasm")));
         assert!(!estimates.contains_key(Path::new("c/c.wasm")));
@@ -1060,7 +1276,7 @@ mod tests {
         .unwrap();
         let wasms = [PathBuf::from("a/benchmark.wasm")];
         let estimates = estimates(&DataDir::new(tmp.path()), &wasms).unwrap();
-        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
+        assert_eq!(total(&estimates, "a/benchmark.wasm"), 100);
     }
 
     #[test]
@@ -1083,23 +1299,19 @@ mod tests {
         std::fs::write(dir.join(crate::runs::CSV), "not gzipped").unwrap();
         let wasms = [PathBuf::from("a/benchmark.wasm")];
         let estimates = estimates(&data, &wasms).unwrap();
-        assert_eq!(estimates[Path::new("a/benchmark.wasm")], 100);
+        assert_eq!(total(&estimates, "a/benchmark.wasm"), 100);
     }
 
     #[test]
     fn schedules_longest_first() {
-        let wasms: Vec<PathBuf> = ["a.wasm", "b.wasm", "c.wasm", "d.wasm"]
-            .map(PathBuf::from)
-            .to_vec();
-        let estimates: Estimates = [
-            (PathBuf::from("a.wasm"), 10),
-            (PathBuf::from("b.wasm"), 30),
-            (PathBuf::from("d.wasm"), 20),
-        ]
-        .into();
-        let order: Vec<String> = schedule(&wasms, 2, Shard::ALL, &estimates)
+        let targets = targets(&["a.wasm", "b.wasm", "c.wasm", "d.wasm"]);
+        let estimates: Estimates = [("a.wasm", 10), ("b.wasm", 30), ("d.wasm", 20)]
+            .into_iter()
+            .map(|(w, c)| (PathBuf::from(w), [(Phase::Execution, c)].into()))
+            .collect();
+        let order: Vec<String> = schedule(&targets, 2, Shard::ALL, &estimates)
             .iter()
-            .map(|u| format!("{} {}", u.wasm.display(), u.iteration))
+            .map(|u| format!("{} {}", u.target.wasm.display(), u.iteration))
             .collect();
         assert_eq!(
             order,
@@ -1113,9 +1325,9 @@ mod tests {
 
     #[test]
     fn schedules_in_suite_order_without_estimates() {
-        let wasms: Vec<PathBuf> = ["b.wasm", "a.wasm", "c.wasm"].map(PathBuf::from).to_vec();
-        let units = schedule(&wasms, 1, Shard::ALL, &Estimates::new());
-        let order: Vec<&Path> = units.iter().map(|u| u.wasm.as_path()).collect();
+        let targets = targets(&["b.wasm", "a.wasm", "c.wasm"]);
+        let units = schedule(&targets, 1, Shard::ALL, &Estimates::new());
+        let order: Vec<&Path> = units.iter().map(|u| u.target.wasm.as_path()).collect();
         assert_eq!(
             order,
             [

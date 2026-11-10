@@ -2,7 +2,7 @@
 //! `docs/regressions.md` ("Issue").
 
 use crate::config::Config;
-use crate::git::Commit;
+use crate::git::{Candidate, Commit};
 use crate::markdown::{self, short};
 use crate::metadata::Metadata;
 use crate::regressions::Report;
@@ -20,6 +20,17 @@ struct Issue {
     body: String,
 }
 
+/// What a bisect of the run adds to its issue. See `crate::bisect`.
+pub struct Bisection {
+    /// Replaces the title's `old..new`, e.g. `0123456789ab (#15208)`.
+    pub title: Option<String>,
+    /// Markdown placed after the opening sentence.
+    pub section: String,
+    /// The one commit to reproduce against its parent, and the benchmarks to
+    /// run, instead of the whole range and every regressed benchmark.
+    pub reproduce: Option<(Candidate, Vec<String>)>,
+}
+
 /// The title suffix that identifies a run's issue. The workflow searches for
 /// it before filing, so re-runs never file duplicates.
 pub fn issue_key(run: RunNumber) -> String {
@@ -33,15 +44,16 @@ fn render(
     metadata: &Metadata,
     config: &Config,
     log: Option<&[Commit]>,
+    bisection: Option<&Bisection>,
 ) -> Result<Option<Issue>> {
     if report.regressions.is_empty() {
         return Ok(None);
     }
     let (old, new) = (&report.baseline_commit, &report.commit);
+    let range = format!("{}..{}", short(old), short(new));
     let title = format!(
-        "Performance regression in {}..{} {}",
-        short(old),
-        short(new),
+        "Performance regression in {} {}",
+        bisection.and_then(|b| b.title.as_deref()).unwrap_or(&range),
         issue_key(report.run)
     );
 
@@ -63,6 +75,9 @@ fn render(
         short(old),
         short(new),
     )?;
+    if let Some(bisection) = bisection {
+        b.push_str(&bisection.section);
+    }
     markdown::runs(&mut b, report, config)?;
     markdown::change_table(&mut b, config, "Regressions", &report.regressions)?;
     if !report.speedups.is_empty() {
@@ -71,17 +86,29 @@ fn render(
     markdown::notes(&mut b, config)?;
     markdown::other_counters(&mut b, &report.other_counters)?;
     markdown::commits(&mut b, old, new, log)?;
-    reproduce(&mut b, report, metadata)?;
+    match bisection.and_then(|b| b.reproduce.as_ref()) {
+        Some((c, wasms)) => {
+            let wasms: Vec<&str> = wasms.iter().map(String::as_str).collect();
+            reproduce(&mut b, &c.parent, &c.commit, wasms, metadata)?;
+        }
+        None => {
+            let wasms = report.regressions.iter().map(|c| c.benchmark.as_str());
+            reproduce(&mut b, old, new, wasms.collect(), metadata)?;
+        }
+    }
     Ok(Some(Issue { title, body: b }))
 }
 
-fn reproduce(b: &mut String, report: &Report, metadata: &Metadata) -> Result<()> {
-    let mut wasms: Vec<&str> = report
-        .regressions
-        .iter()
-        .map(|c| c.benchmark.as_str())
-        .filter(|&w| w != GEOMEAN)
-        .collect();
+/// How to rerun `wasms` at `old` and `new`. The Geomean stands for the whole
+/// suite.
+fn reproduce(
+    b: &mut String,
+    old: &str,
+    new: &str,
+    wasms: Vec<&str>,
+    metadata: &Metadata,
+) -> Result<()> {
+    let mut wasms: Vec<&str> = wasms.into_iter().filter(|&w| w != GEOMEAN).collect();
     wasms.sort();
     wasms.dedup();
     if wasms.is_empty() {
@@ -110,8 +137,8 @@ fn reproduce(b: &mut String, report: &Report, metadata: &Metadata) -> Result<()>
     writeln!(b, "git checkout {}", metadata.sightglass.commit)?;
     writeln!(b, "rustc engines/wasmtime/build.rs -o build-engine")?;
     writeln!(b, "mkdir old new")?;
-    writeln!(b, "REVISION={} ./build-engine old", report.baseline_commit)?;
-    writeln!(b, "REVISION={} ./build-engine new", report.commit)?;
+    writeln!(b, "REVISION={old} ./build-engine old")?;
+    writeln!(b, "REVISION={new} ./build-engine new")?;
     writeln!(b, "cargo run --release -- benchmark --measure callgrind \\")?;
     writeln!(
         b,
@@ -139,8 +166,9 @@ pub fn write(
     metadata: &Metadata,
     config: &Config,
     log: Option<&[Commit]>,
+    bisection: Option<&Bisection>,
 ) -> Result<bool> {
-    let Some(issue) = render(report, metadata, config, log)? else {
+    let Some(issue) = render(report, metadata, config, log, bisection)? else {
         return Ok(false);
     };
     std::fs::create_dir_all(dir)?;
@@ -221,7 +249,9 @@ mod tests {
     }
 
     fn render_snapshot(name: &str, report: &Report, metadata: &Metadata, log: Option<&[Commit]>) {
-        let issue = render(report, metadata, &config(), log).unwrap().unwrap();
+        let issue = render(report, metadata, &config(), log, None)
+            .unwrap()
+            .unwrap();
         assert_snapshot(
             &format!("issue/{name}.md"),
             &format!("{}\n\n{}", issue.title, issue.body),
@@ -231,7 +261,7 @@ mod tests {
     #[test]
     fn title() {
         let (report, metadata) = fixture_report();
-        let issue = render(&report, &metadata, &config(), None)
+        let issue = render(&report, &metadata, &config(), None, None)
             .unwrap()
             .unwrap();
         assert_eq!(
@@ -336,7 +366,7 @@ mod tests {
             subject: r"Return Box<dyn Error> & fix [brackets](x) and \backslashes".into(),
         }];
         let (report, metadata) = fixture_report();
-        let issue = render(&report, &metadata, &config(), Some(&log))
+        let issue = render(&report, &metadata, &config(), Some(&log), None)
             .unwrap()
             .unwrap();
         assert!(
@@ -356,13 +386,13 @@ mod tests {
         report.regressions.clear();
         assert!(!report.speedups.is_empty());
         assert!(
-            render(&report, &metadata, &config(), None)
+            render(&report, &metadata, &config(), None, None)
                 .unwrap()
                 .is_none()
         );
         let dir = tempfile::tempdir().unwrap();
         let issue_dir = dir.path().join("issue");
-        assert!(!write(&issue_dir, &report, &metadata, &config(), None).unwrap());
+        assert!(!write(&issue_dir, &report, &metadata, &config(), None, None).unwrap());
         assert!(!issue_dir.exists());
     }
 }

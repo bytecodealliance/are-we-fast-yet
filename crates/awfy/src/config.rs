@@ -13,6 +13,8 @@ pub struct Config {
     pub benchmark: Benchmark,
     /// Statistical regression config options.
     pub regressions: Regressions,
+    /// Options for bisecting a detected regression.
+    pub bisect: Bisect,
     /// Generated site config options.
     pub site: Site,
 }
@@ -89,6 +91,21 @@ impl MinRelativeChange {
             Phase::Execution => &self.execution,
         }
     }
+}
+
+/// Options for bisecting a detected regression. See `docs/regressions.md`.
+#[derive(Clone, Debug, Deserialize, PartialEq, Serialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Bisect {
+    /// Callgrind iterations per side. Bisect only tells "no change" from the
+    /// detected regression, rather than testing significance afresh.
+    pub iterations: u32,
+    /// The share of the detected change, in log terms, a commit's own change
+    /// must reach to be blamed.
+    pub blame_share: f64,
+    /// How far the commits' changes may sum from the detected change, as a
+    /// share of it, and still account for it.
+    pub completeness_tolerance: f64,
 }
 
 /// Config options for site generation.
@@ -196,6 +213,10 @@ mod tests {
             [regressions.min-relative-change.execution]
             geomean = 0.002
             individual = 0.01
+            [bisect]
+            iterations = 2
+            blame-share = 0.25
+            completeness-tolerance = 0.25
             [site]
             base-url = "https://example.com/"
             repo = "a/b"
@@ -222,6 +243,10 @@ mod tests {
             [regressions.min-relative-change.execution]
             geomean = 0.002
             individual = 0.01
+            [bisect]
+            iterations = 2
+            blame-share = 0.25
+            completeness-tolerance = 0.25
             [site]
             base-url = "https://example.com/"
             repo = "a/b"

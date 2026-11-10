@@ -365,7 +365,7 @@ pub fn run(root: &Path, options: Options) -> Result<()> {
     }
     if let (Some(dir), Outcome::Compared(report)) = (&options.issue_dir, &outcome) {
         let metadata = data.metadata(report.run)?;
-        let wrote = crate::issue::write(dir, report, &metadata, &config, log.as_deref())?;
+        let wrote = crate::issue::write(dir, report, &metadata, &config, log.as_deref(), None)?;
         if wrote {
             log::info!("wrote issue to {}", dir.display());
         }

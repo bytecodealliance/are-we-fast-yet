@@ -245,7 +245,10 @@ fn merge_failures(manifests: &[Manifest]) -> BTreeMap<String, String> {
         merged
             .entry(f.wasm.clone())
             .or_default()
-            .push(format!("iteration {}: {}", f.iteration, f.reason));
+            .push(match f.phase {
+                Some(phase) => format!("{phase} iteration {}: {}", f.iteration, f.reason),
+                None => format!("iteration {}: {}", f.iteration, f.reason),
+            });
     }
     merged
         .into_iter()
@@ -257,7 +260,7 @@ fn merge_failures(manifests: &[Manifest]) -> BTreeMap<String, String> {
 ///
 /// `engine` becomes `wasmtime`, and `wasm` is made relative to
 /// `sightglass/benchmarks/`.
-fn merge(scratch: &[PathBuf]) -> Result<Vec<Measurement<'static>>> {
+pub(crate) fn merge(scratch: &[PathBuf]) -> Result<Vec<Measurement<'static>>> {
     let mut files: Vec<PathBuf> = Vec::new();
     for dir in scratch {
         for entry in std::fs::read_dir(dir).with_context(|| format!("reading {}", dir.display()))? {
@@ -368,6 +371,7 @@ mod tests {
         Failed {
             wasm: wasm.into(),
             iteration,
+            phase: None,
             reason: "exit status: 1".into(),
         }
     }
