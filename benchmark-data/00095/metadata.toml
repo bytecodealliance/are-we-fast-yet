@@ -1,0 +1,31 @@
+schema = 1
+started = 2026-11-10T17:21:44Z
+finished = 2026-11-10T19:16:37Z
+
+[wasmtime]
+commit = "83a0df59ba5bce73b7b2c6982637c04c4fb7a4bc"
+commit-date = 2026-11-10T16:47:01Z
+
+[[wasmtime.commits]]
+commit = "83a0df59ba5bce73b7b2c6982637c04c4fb7a4bc"
+subject = "Skip clearing and restoring the may-leave flag when we don't call realloc (#15217)"
+
+[sightglass]
+commit = "2d453335318d05cf42b6f3263aa68f0021985f10"
+suite = "benchmarks/default.suite"
+
+[are-we-fast-yet]
+commit = "90aa6072d93bae6fcf02100e1d7813db15bcad59"
+workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs/42864018707"
+
+[environment]
+valgrind = "valgrind-3.22.0"
+rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+uname = "Linux runnervm7aw5e 7.0.0-1017-azure #17~24.04.1-Ubuntu SMP PREEMPT Thu Sep 24 18:46:57 UTC 2026 x86_64 x86_64 x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+
+[config]
+iterations = 6
+engine-flags = "-Cparallel-compilation=n --target x86_64-unknown-linux-gnu -Ccranelift-has-sse3 -Ccranelift-has-ssse3 -Ccranelift-has-sse41 -Ccranelift-has-sse42 -Ccranelift-has-popcnt -Ccranelift-has-avx -Ccranelift-has-avx2 -Ccranelift-has-fma -Ccranelift-has-bmi1 -Ccranelift-has-bmi2 -Ccranelift-has-lzcnt -Ccranelift-has-cmpxchg16b"
+
+[failures]
