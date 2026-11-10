@@ -53,6 +53,22 @@ test("run page shows metadata and changes", async ({ page }) => {
   expect(errors).toEqual([]);
 });
 
+test("run page lists each shard's host", async ({ page }) => {
+  const errors = watchErrors(page);
+  await page.goto("run.html?run=00006");
+  const hosts = page.locator("#hosts > li");
+  await expect(hosts).toHaveCount(3);
+  await expect(hosts.nth(1)).toContainText("Iterations 1, 4: Intel(R) Xeon(R) Platinum 8370C");
+  await hosts.nth(1).locator("summary").click();
+  await expect(hosts.nth(1)).toContainText("avx512f");
+
+  // Runs recorded before sharding had one host for every iteration.
+  await page.goto("run.html?run=00003");
+  await expect(page.locator("#hosts > li")).toHaveCount(1);
+  await expect(page.locator("#hosts > li")).toContainText("Iterations 0, 1, 2, 3, 4, 5: AMD EPYC 7763");
+  expect(errors).toEqual([]);
+});
+
 test("run page shows each benchmark's noise", async ({ page }) => {
   const errors = watchErrors(page);
   await page.goto("run.html?run=00003");

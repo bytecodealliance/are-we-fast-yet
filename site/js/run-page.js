@@ -40,8 +40,7 @@ start(async () => {
     ["Workflow run", m["are-we-fast-yet"]["workflow-run"] ? link(m["are-we-fast-yet"]["workflow-run"], "logs") : "none"],
     ["Valgrind", m.environment.valgrind],
     ["rustc", m.environment.rustc],
-    ["uname", el("code", {}, m.environment.uname)],
-    ["CPU", m.environment.cpu],
+    ["Hosts", renderHosts(m.environment.hosts)],
     ["Iterations", String(m.config.iterations)],
     ["Engine flags", el("code", {}, m.config["engine-flags"])],
     [
@@ -64,6 +63,28 @@ start(async () => {
   renderCommits(commitLog(m, previousSha));
   renderTable(page.changes);
 });
+
+/** One entry per shard: which iterations it measured, and on what. */
+function renderHosts(hosts) {
+  return el(
+    "ul",
+    { id: "hosts" },
+    hosts.map((h) =>
+      el(
+        "li",
+        {},
+        `Iterations ${h.iterations.join(", ")}: ${h.cpu}`,
+        el(
+          "details",
+          {},
+          el("summary", {}, "details"),
+          el("code", {}, h.uname),
+          h["cpu-flags"] ? el("p", {}, "Flags: ", el("code", {}, h["cpu-flags"])) : null,
+        ),
+      ),
+    ),
+  );
+}
 
 /** The Wasmtime commits new in this run, newest first. */
 function renderCommits({ commits, omitted, compare }) {

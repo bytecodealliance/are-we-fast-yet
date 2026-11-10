@@ -4,7 +4,7 @@
 use crate::config::Config;
 use crate::git::{GitLog, Repo};
 use crate::metadata::{
-    AreWeFastYet, Environment, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
+    AreWeFastYet, Environment, Host, Metadata, RunConfig, SCHEMA, Sightglass, Timestamp, Wasmtime,
 };
 use crate::run::{Failed, MANIFEST, Manifest};
 use crate::runs::{self, DataDir, RunNumber};
@@ -114,6 +114,7 @@ pub fn record(
         );
     }
     let failures = merge_failures(&manifests);
+    let iterations = options.iterations.unwrap_or(config.benchmark.iterations);
 
     let data = DataDir::new(root);
     std::fs::create_dir_all(data.path())?;
@@ -170,11 +171,19 @@ pub fn record(
             // Run from the root so `rust-toolchain.toml` picks the toolchain,
             // the same one that built Wasmtime.
             rustc: probe.command(root, "rustc", &["--version"])?,
-            uname: distinct(manifests.iter().map(|m| m.host.uname.as_str())),
-            cpu: distinct(manifests.iter().map(|m| m.host.cpu.as_str())),
+            hosts: manifests
+                .iter()
+                .map(|m| Host {
+                    shard: m.index,
+                    iterations: (0..iterations).filter(|i| i % m.count == m.index).collect(),
+                    uname: m.host.uname.clone(),
+                    cpu: m.host.cpu.clone(),
+                    cpu_flags: Some(m.host.cpu_flags.clone()),
+                })
+                .collect(),
         },
         config: RunConfig {
-            iterations: options.iterations.unwrap_or(config.benchmark.iterations),
+            iterations,
             engine_flags: config.benchmark.engine_flags.clone(),
         },
         failures,
@@ -242,17 +251,6 @@ fn merge_failures(manifests: &[Manifest]) -> BTreeMap<String, String> {
         .into_iter()
         .map(|(wasm, reasons)| (wasm, reasons.join("; ")))
         .collect()
-}
-
-/// The distinct values, in first-seen order, joined with `; `.
-fn distinct<'a>(values: impl Iterator<Item = &'a str>) -> String {
-    let mut seen: Vec<&str> = Vec::new();
-    for v in values {
-        if !seen.contains(&v) {
-            seen.push(v);
-        }
-    }
-    seen.join("; ")
 }
 
 /// Read every per-unit CSV in `scratch`, normalize, and sort.
@@ -362,6 +360,7 @@ mod tests {
         crate::run::Host {
             uname: "Linux fake x86_64 GNU/Linux".into(),
             cpu: cpu.into(),
+            cpu_flags: format!("{cpu} flags"),
         }
     }
 
@@ -566,8 +565,16 @@ mod tests {
             metadata.are_we_fast_yet.workflow_run.as_deref(),
             Some("https://example.com/run/1")
         );
-        assert_eq!(metadata.environment.cpu, "Fake CPU");
-        assert_eq!(metadata.environment.uname, "Linux fake x86_64 GNU/Linux");
+        assert_eq!(
+            metadata.environment.hosts,
+            [Host {
+                shard: 0,
+                iterations: (0..6).collect(),
+                uname: "Linux fake x86_64 GNU/Linux".into(),
+                cpu: "Fake CPU".into(),
+                cpu_flags: Some("Fake CPU flags".into()),
+            }]
+        );
         assert_eq!(metadata.finished.to_string(), "2026-10-10T04:00:00Z");
         assert_eq!(metadata.config.iterations, 6);
         assert_eq!(
@@ -776,8 +783,20 @@ mod tests {
         // Iteration order, whichever shard measured each.
         assert_eq!(counts, [0, 1, 2, 3, 4, 5]);
         let metadata = data.metadata(run).unwrap();
-        assert_eq!(metadata.environment.cpu, "CPU A; CPU B");
-        assert_eq!(metadata.environment.uname, "Linux fake x86_64 GNU/Linux");
+        let hosts: Vec<(u32, Vec<u32>, &str)> = metadata
+            .environment
+            .hosts
+            .iter()
+            .map(|h| (h.shard, h.iterations.clone(), h.cpu.as_str()))
+            .collect();
+        assert_eq!(
+            hosts,
+            [
+                (0, vec![0, 3], "CPU A"),
+                (1, vec![1, 4], "CPU B"),
+                (2, vec![2, 5], "CPU A")
+            ]
+        );
         // Failures from different shards merge in iteration order.
         assert_eq!(
             metadata.failures,

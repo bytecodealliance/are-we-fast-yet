@@ -7,8 +7,9 @@ use std::collections::BTreeMap;
 use std::fmt;
 use std::path::Path;
 
-/// The only `schema` this version of `awfy` reads and writes.
-pub const SCHEMA: u32 = 1;
+/// The `schema` this version of `awfy` writes. It also reads schema 1, which
+/// recorded one host per run, by upgrading it on load.
+pub const SCHEMA: u32 = 2;
 
 /// `metadata.toml`: recorded metadata about a benchmark run.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
@@ -90,10 +91,80 @@ pub struct Environment {
     pub valgrind: String,
     /// The version of `rustc` installed.
     pub rustc: String,
-    /// The runner's `uname -a`.
+    /// The host of each shard, in shard order.
+    pub hosts: Vec<Host>,
+}
+
+/// The host that measured one shard of a run. Excluded from the fingerprint,
+/// since runners vary.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+pub struct Host {
+    /// The shard's index.
+    pub shard: u32,
+    /// The iterations this host measured.
+    pub iterations: Vec<u32>,
+    /// The host's `uname -a`.
     pub uname: String,
-    /// The runner's ISA and vendor details.
+    /// The CPU model name.
     pub cpu: String,
+    /// The CPU's feature flags from `/proc/cpuinfo`. `None` for schema 1 runs,
+    /// which did not record them.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cpu_flags: Option<String>,
+}
+
+/// Schema 1's `[environment]`: one host for the whole run.
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+struct EnvironmentV1 {
+    valgrind: String,
+    rustc: String,
+    uname: String,
+    cpu: String,
+}
+
+/// A schema 1 file, which differs from schema 2 only in `[environment]`.
+#[derive(Deserialize)]
+#[serde(rename_all = "kebab-case", deny_unknown_fields)]
+struct MetadataV1 {
+    schema: u32,
+    started: Timestamp,
+    finished: Timestamp,
+    wasmtime: Wasmtime,
+    sightglass: Sightglass,
+    are_we_fast_yet: AreWeFastYet,
+    environment: EnvironmentV1,
+    config: RunConfig,
+    #[serde(default)]
+    failures: BTreeMap<String, String>,
+}
+
+impl From<MetadataV1> for Metadata {
+    fn from(v1: MetadataV1) -> Self {
+        let e = v1.environment;
+        Self {
+            schema: SCHEMA,
+            started: v1.started,
+            finished: v1.finished,
+            wasmtime: v1.wasmtime,
+            sightglass: v1.sightglass,
+            are_we_fast_yet: v1.are_we_fast_yet,
+            environment: Environment {
+                valgrind: e.valgrind,
+                rustc: e.rustc,
+                hosts: vec![Host {
+                    shard: 0,
+                    iterations: (0..v1.config.iterations).collect(),
+                    uname: e.uname,
+                    cpu: e.cpu,
+                    cpu_flags: None,
+                }],
+            },
+            config: v1.config,
+            failures: v1.failures,
+        }
+    }
 }
 
 /// The `config.toml` settings that affect measurements.
@@ -114,7 +185,8 @@ impl Metadata {
         Self::parse(&text).with_context(|| format!("parsing {}", path.display()))
     }
 
-    /// Parse a metadata file from string.
+    /// Parse a metadata file from string, upgrading an older schema to the
+    /// current one.
     pub fn parse(text: &str) -> Result<Self> {
         // Check the schema first, so a future schema gets a clear error rather
         // than a confusing one about its fields.
@@ -123,10 +195,17 @@ impl Metadata {
             schema: u32,
         }
         let Schema { schema } = toml::from_str(text).context("reading `schema`")?;
-        if schema != SCHEMA {
-            bail!("unsupported metadata schema {schema}; this awfy reads schema {SCHEMA}");
+        match schema {
+            1 => {
+                let v1: MetadataV1 = toml::from_str(text)?;
+                debug_assert_eq!(v1.schema, 1);
+                Ok(v1.into())
+            }
+            SCHEMA => Ok(toml::from_str(text)?),
+            _ => {
+                bail!("unsupported metadata schema {schema}; this awfy reads schemas 1 to {SCHEMA}")
+            }
         }
-        Ok(toml::from_str(text)?)
     }
 
     /// Serialize this metadata into TOML.
@@ -235,8 +314,22 @@ pub(crate) mod tests {
             environment: Environment {
                 valgrind: "valgrind-3.22.0".into(),
                 rustc: "rustc 1.90.0 (1159e78c4 2025-09-14)".into(),
-                uname: "Linux runnervm 6.11.0-1018-azure x86_64 GNU/Linux".into(),
-                cpu: "AMD EPYC 7763 64-Core Processor".into(),
+                hosts: vec![
+                    Host {
+                        shard: 0,
+                        iterations: vec![0, 2],
+                        uname: "Linux runnervm 6.11.0-1018-azure x86_64 GNU/Linux".into(),
+                        cpu: "AMD EPYC 7763 64-Core Processor".into(),
+                        cpu_flags: Some("fpu vme de pse avx2".into()),
+                    },
+                    Host {
+                        shard: 1,
+                        iterations: vec![1],
+                        uname: "Linux runnervm 6.11.0-1018-azure x86_64 GNU/Linux".into(),
+                        cpu: "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz".into(),
+                        cpu_flags: Some("fpu vme de pse avx2 avx512f".into()),
+                    },
+                ],
             },
             config: RunConfig {
                 iterations: 3,
@@ -280,15 +373,77 @@ pub(crate) mod tests {
         let text = example()
             .to_toml()
             .unwrap()
-            .replace("schema = 1", "schema = 2");
+            .replace("schema = 2", "schema = 3");
         let err = Metadata::parse(&text).unwrap_err();
-        assert!(format!("{err:#}").contains("unsupported metadata schema 2"));
+        assert!(format!("{err:#}").contains("unsupported metadata schema 3"));
+    }
+
+    #[test]
+    fn hosts_are_an_array_of_tables() {
+        let text = example().to_toml().unwrap();
+        assert!(
+            text.contains("[[environment.hosts]]\nshard = 1\n"),
+            "{text}"
+        );
+        assert!(text.contains("iterations = [0, 2]\n"), "{text}");
+    }
+
+    /// Schema 1 recorded one host for the whole run.
+    #[test]
+    fn upgrades_schema_1() {
+        let text = r#"
+            schema = 1
+            started = 2026-10-10T03:17:00Z
+            finished = 2026-10-10T04:21:12Z
+
+            [wasmtime]
+            commit = "0123456789abcdef0123456789abcdef01234567"
+            commit-date = 2026-10-09T22:41:05Z
+
+            [sightglass]
+            commit = "e38856287c8871228d7ff843e29028c381a71dd7"
+            suite = "benchmarks/default.suite"
+
+            [are-we-fast-yet]
+            commit = "fedcba9876543210fedcba9876543210fedcba98"
+
+            [environment]
+            valgrind = "valgrind-3.22.0"
+            rustc = "rustc 1.90.0 (1159e78c4 2025-09-14)"
+            uname = "Linux runnervm"
+            cpu = "AMD EPYC 7763 64-Core Processor"
+
+            [config]
+            iterations = 3
+            engine-flags = ""
+
+            [failures]
+        "#;
+        let m = Metadata::parse(text).unwrap();
+        assert_eq!(m.schema, SCHEMA);
+        assert_eq!(
+            m.environment.hosts,
+            [Host {
+                shard: 0,
+                iterations: vec![0, 1, 2],
+                uname: "Linux runnervm".into(),
+                cpu: "AMD EPYC 7763 64-Core Processor".into(),
+                cpu_flags: None,
+            }]
+        );
+        assert_eq!(m.environment.valgrind, "valgrind-3.22.0");
+        // An upgraded run writes as schema 2.
+        assert_eq!(Metadata::parse(&m.to_toml().unwrap()).unwrap(), m);
+
+        // Schema 1 with schema 2's hosts is neither.
+        let mixed = text.replace("cpu = \"AMD", "hosts = []\ncpu = \"AMD");
+        assert!(Metadata::parse(&mixed).is_err());
     }
 
     #[test]
     fn fields() {
         let m = example();
-        assert_eq!(m.field("schema").unwrap(), "1");
+        assert_eq!(m.field("schema").unwrap(), "2");
         assert_eq!(m.field("started").unwrap(), "2026-10-10T03:17:00Z");
         assert_eq!(
             m.field("wasmtime.commit").unwrap(),

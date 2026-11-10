@@ -1,4 +1,4 @@
-schema = 1
+schema = 2
 started = 2026-10-06T03:17:00Z
 finished = 2026-10-06T04:21:12Z
 
@@ -21,8 +21,27 @@ workflow-run = "https://github.com/bytecodealliance/are-we-fast-yet/actions/runs
 [environment]
 valgrind = "valgrind-3.24.0"
 rustc = "rustc 1.99.0 (b940084d7 2026-09-28)"
+
+[[environment.hosts]]
+shard = 0
+iterations = [0, 3]
 uname = "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux"
 cpu = "AMD EPYC 7763 64-Core Processor"
+cpu-flags = "fpu vme de pse sse4_2 avx avx2 bmi1 bmi2"
+
+[[environment.hosts]]
+shard = 1
+iterations = [1, 4]
+uname = "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux"
+cpu = "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz"
+cpu-flags = "fpu vme de pse sse4_2 avx avx2 bmi1 bmi2 avx512f"
+
+[[environment.hosts]]
+shard = 2
+iterations = [2, 5]
+uname = "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux"
+cpu = "AMD EPYC 7763 64-Core Processor"
+cpu-flags = "fpu vme de pse sse4_2 avx avx2 bmi1 bmi2"
 
 [config]
 iterations = 6

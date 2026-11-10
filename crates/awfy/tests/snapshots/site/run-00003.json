@@ -102,14 +102,27 @@
       "iterations": 6
     },
     "environment": {
-      "cpu": "AMD EPYC 7763 64-Core Processor",
+      "hosts": [
+        {
+          "cpu": "AMD EPYC 7763 64-Core Processor",
+          "iterations": [
+            0,
+            1,
+            2,
+            3,
+            4,
+            5
+          ],
+          "shard": 0,
+          "uname": "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux"
+        }
+      ],
       "rustc": "rustc 1.99.0 (b940084d7 2026-09-28)",
-      "uname": "Linux runnervm 6.11.0-1018-azure #18~24.04.1-Ubuntu SMP x86_64 GNU/Linux",
       "valgrind": "valgrind-3.22.0"
     },
     "failures": {},
     "finished": "2026-10-03T04:21:12Z",
-    "schema": 1,
+    "schema": 2,
     "sightglass": {
       "commit": "e38856287c8871228d7ff843e29028c381a71dd7",
       "suite": "benchmarks/default.suite"

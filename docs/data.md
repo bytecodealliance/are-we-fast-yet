@@ -18,9 +18,21 @@
   site is built by a job with no Wasmtime clone to read them from. A long log
   is truncated, with the rest counted in `omitted-commits`.
 
+## Hosts
+
+A run is measured in shards on different runners, so `[[environment.hosts]]`
+records each shard's host: the iterations it measured, `uname`, the CPU model,
+and the CPU's feature flags. That makes it possible to check whether hosts
+measure differently, whether Valgrind passing CPU feature bits through steers
+the code that runs, and, if host effects ever matter, to switch to a test
+stratified by host.
+
+Metadata schema 1 recorded a single `uname` and `cpu` for the whole run.
+`awfy` still reads it, as one host covering every iteration with no flags.
+
 ## Environment fingerprint
 
 The fingerprint covers what we change deliberately: the Sightglass commit,
-Valgrind, rustc, and `[config]`. Host details such as `uname` and `cpu` are
-recorded but excluded, because runners vary. A fingerprint change gets a marker
+Valgrind, rustc, and `[config]`. Hosts are recorded but excluded, because
+runners vary. A fingerprint change gets a marker
 on the site and skips regression detection for that pair of runs.

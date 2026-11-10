@@ -49,7 +49,8 @@ fn run_then_record() {
         metadata.failures.keys().collect::<Vec<_>>(),
         ["b/benchmark.wasm"]
     );
-    assert_ne!(metadata.environment.uname, "");
+    assert_eq!(metadata.environment.hosts.len(), 1);
+    assert_ne!(metadata.environment.hosts[0].uname, "");
 
     let measurements = data.measurements(run).unwrap();
     // 2 benchmarks x 6 iterations x 3 phases x 2 events.
@@ -106,6 +107,9 @@ fn sharded_run_records_the_same_data() {
         data.metadata(one).unwrap().failures,
         data.metadata(three).unwrap().failures
     );
+    let hosts = data.metadata(three).unwrap().environment.hosts;
+    let iterations: Vec<Vec<u32>> = hosts.iter().map(|h| h.iterations.clone()).collect();
+    assert_eq!(iterations, [vec![0, 3], vec![1, 4], vec![2, 5]]);
 }
 
 fn options(scratch: Vec<std::path::PathBuf>) -> Options {

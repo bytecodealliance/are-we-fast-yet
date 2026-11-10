@@ -123,7 +123,7 @@ mod tests {
         let meta = std::fs::read_to_string(p("00002", runs::METADATA)).unwrap();
         std::fs::write(
             p("00002", runs::METADATA),
-            meta.replace("schema = 1", "schema = 2"),
+            meta.replace("schema = 1", "schema = 3"),
         )
         .unwrap();
         std::fs::write(p("00003", runs::CSV), "not gzip").unwrap();
@@ -142,7 +142,7 @@ mod tests {
         let has = |needle: &str| problems.iter().any(|p| p.contains(needle));
         assert!(has("00001: expected exactly"), "{problems:#?}");
         assert!(
-            has("00002: parsing") && has("unsupported metadata schema 2"),
+            has("00002: parsing") && has("unsupported metadata schema 3"),
             "{problems:#?}"
         );
         assert!(has("00003:") && has("is not gzipped"), "{problems:#?}");

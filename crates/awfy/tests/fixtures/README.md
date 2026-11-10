@@ -23,7 +23,7 @@ tests exercise picking the right one rather than a single threshold everywhere.
 | 00003 | Against 00002: `bz2` execution +1.5% (above execution's 1% individual threshold, with `instructions-retired` up too), `pulldown-cmark` compilation +0.5% (below compilation's), `bz2` compilation -3% (a speedup). The execution Geomean is +0.75%, above that phase's 0.2% geomean threshold; the compilation Geomean is -1.3%, below compilation's 2%. |
 | 00004 | Every count doubled. Excluded in `excluded.toml`. |
 | 00005 | Same counts as 00003, but `valgrind-3.24.0`: a fingerprint change. |
-| 00006 | Same as 00005, but `pulldown-cmark` failed: no rows, and a `[failures]` entry. |
+| 00006 | Same as 00005, but `pulldown-cmark` failed: no rows, and a `[failures]` entry. The only schema 2 run, with three hosts; the rest are schema 1. |
 
 `sightglass.csv.gz` files are generated from the plain CSVs in `csv/`. After
 editing one, regenerate with:

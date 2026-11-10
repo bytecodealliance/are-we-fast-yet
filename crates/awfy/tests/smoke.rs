@@ -61,6 +61,16 @@ fn smoke() {
     }
     assert!(metadata.environment.valgrind.starts_with("valgrind-"));
     assert!(metadata.environment.rustc.starts_with("rustc "));
+    let [host] = metadata.environment.hosts.as_slice() else {
+        panic!("{:?}", metadata.environment.hosts);
+    };
+    assert_ne!(host.cpu, "unknown");
+    assert!(
+        host.cpu_flags
+            .as_deref()
+            .is_some_and(|f| f.contains("sse2")),
+        "{host:?}"
+    );
 
     let measurements = data.measurements(run).unwrap();
     let benchmarks: BTreeSet<&str> = measurements.iter().map(|m| m.wasm.as_ref()).collect();

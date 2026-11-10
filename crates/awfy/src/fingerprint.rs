@@ -122,8 +122,9 @@ mod tests {
     fn host_details_are_ignored() {
         assert!(
             diff(|m| {
-                m.environment.uname = "other".into();
-                m.environment.cpu = "Intel".into();
+                m.environment.hosts[0].uname = "other".into();
+                m.environment.hosts[0].cpu = "Intel".into();
+                m.environment.hosts.pop();
                 m.wasmtime.commit = "other".into();
                 m.started = "2027-01-01T00:00:00Z".parse().unwrap();
             })

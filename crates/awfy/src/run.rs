@@ -91,6 +91,9 @@ pub struct Host {
     pub uname: String,
     /// The CPU model name.
     pub cpu: String,
+    /// The CPU's feature flags. Valgrind passes some through to the guest,
+    /// so they could steer what code runs.
+    pub cpu_flags: String,
 }
 
 impl Host {
@@ -109,6 +112,7 @@ impl Host {
         Ok(Self {
             uname: String::from_utf8(output.stdout)?.trim().to_string(),
             cpu: cpuinfo_field(&cpuinfo, "model name").unwrap_or_else(|| "unknown".into()),
+            cpu_flags: cpuinfo_field(&cpuinfo, "flags").unwrap_or_else(|| "unknown".into()),
         })
     }
 }
@@ -625,6 +629,7 @@ mod tests {
         Host {
             uname: "Linux fake".into(),
             cpu: "Fake CPU".into(),
+            cpu_flags: "fpu avx2".into(),
         }
     }
 
