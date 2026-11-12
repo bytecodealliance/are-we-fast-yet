@@ -2,7 +2,8 @@ name: Bisect
 
 # Started by `benchmark.yml` when a run regresses. Measures every commit in the
 # run's range beside its parent, then files the issue naming the commits that
-# reproduce the regression, or files nothing if none does. See
+# reproduce the regression, or files nothing if none does. A range of one
+# commit skips measuring and files the issue naming that commit. See
 # docs/regressions.md.
 #
 # No concurrency group: bisects only read recorded data and file at most one
@@ -34,6 +35,7 @@ jobs:
     timeout-minutes: 60
     outputs:
       matrix: ${{ steps.plan.outputs.matrix }}
+      measure: ${{ steps.plan.outputs.measure }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -72,7 +74,11 @@ jobs:
           matrix=$(target/release/awfy bisect-plan --run "$RUN" \
             --wasmtime-repo "$RUNNER_TEMP/wasmtime" \
             --out "$RUNNER_TEMP/plan")
-          echo "matrix=$matrix" >> "$GITHUB_OUTPUT"
+          {
+            echo "matrix=$matrix"
+            # GitHub rejects an empty matrix, so `measure` must be skipped.
+            echo "measure=$(jq '.include | length > 0' <<< "$matrix")"
+          } >> "$GITHUB_OUTPUT"
 
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
@@ -89,9 +95,10 @@ jobs:
           retention-days: 7
 
   # One job per candidate, measuring it and its parent on the same runner so
-  # the host effect cancels out.
+  # the host effect cancels out. Skipped for a range of one commit.
   measure:
     needs: plan
+    if: needs.plan.outputs.measure == 'true'
     runs-on: ubuntu-24.04
     timeout-minutes: 240
     strategy:

@@ -17,7 +17,8 @@
   See [regressions.md](regressions.md). It has no `concurrency` group, so it
   never holds up the next benchmark run. `plan` writes the matrix, `measure`
   runs one job per candidate commit, and `report` runs even when those fail,
-  so a failed bisect still files the range issue. Bisect jobs restore the
+  so a failed bisect still files the range issue. A range of one commit skips
+  `measure` and goes straight to `report`. Bisect jobs restore the
   Wasmtime build cache but never save it, so they don't evict the benchmark
   lane's entry.
 * `pages.yml`: build and deploy the site. `benchmark.yml` calls it directly,

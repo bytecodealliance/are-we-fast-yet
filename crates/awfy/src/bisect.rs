@@ -6,6 +6,8 @@
 //! candidate is measured beside its parent on one runner, in just the
 //! regressed (benchmark, phase) pairs. The report then compares each
 //! candidate's own change with the change the main run detected.
+//!
+//! A range of one commit needs no measuring: the report blames it outright.
 
 use crate::config::Config;
 use crate::git::{Candidate, FirstParents, GitLog, Repo};
@@ -97,11 +99,22 @@ pub struct Plan {
 }
 
 impl Plan {
-    /// The GitHub Actions matrix: one job per candidate.
+    /// Whether the candidates need measuring. A range of one commit doesn't:
+    /// that commit is responsible for everything the main run detected.
+    pub fn measures(&self) -> bool {
+        self.candidates.len() > 1
+    }
+
+    /// The GitHub Actions matrix: one job per candidate, or none if the plan
+    /// [measures](Self::measures) nothing.
     pub fn matrix(&self) -> serde_json::Value {
         let pairs = self.pairs.join(" ");
-        let include: Vec<serde_json::Value> = self
-            .candidates
+        let candidates = if self.measures() {
+            &self.candidates[..]
+        } else {
+            &[]
+        };
+        let include: Vec<serde_json::Value> = candidates
             .iter()
             .map(|c| {
                 serde_json::json!({
@@ -123,12 +136,19 @@ pub fn plan_command(root: &Path, options: PlanOptions) -> Result<()> {
     let plan = plan(&data, &report, &Repo::new(&options.wasmtime_repo))?;
     std::fs::create_dir_all(&options.out)?;
     std::fs::write(options.out.join(PLAN), serde_json::to_string_pretty(&plan)?)?;
-    log::info!(
-        "bisecting {} regression(s) over {} candidate(s), measuring {} pair(s) each",
-        plan.regressed.len(),
-        plan.candidates.len(),
-        plan.pairs.len()
-    );
+    if plan.measures() {
+        log::info!(
+            "bisecting {} regression(s) over {} candidate(s), measuring {} pair(s) each",
+            plan.regressed.len(),
+            plan.candidates.len(),
+            plan.pairs.len()
+        );
+    } else {
+        log::info!(
+            "the range is the single commit {}, so there is nothing to measure",
+            short(&plan.candidates[0].commit)
+        );
+    }
     println!("{}", plan.matrix());
     Ok(())
 }
@@ -287,6 +307,8 @@ impl Attribution {
 /// What the bisect found.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Verdict {
+    /// The range is one commit, blamed without measuring.
+    SingleCommit,
     /// At least one regressed pair reproduced.
     Confirmed,
     /// Every candidate was measured and none reproduced the regression.
@@ -398,6 +420,13 @@ pub fn findings(
         plan.run,
         report.run
     );
+    if !plan.measures() {
+        return Ok(Findings {
+            plan: Some(plan),
+            attributions: vec![],
+            verdict: Verdict::SingleCommit,
+        });
+    }
 
     let mut ratios: Vec<Option<Ratios>> = Vec::new();
     for c in &plan.candidates {
@@ -581,6 +610,27 @@ pub fn bisection(findings: &Findings, workflow_run: Option<&str>) -> Option<Bise
                 reproduce: None,
             });
         }
+        Verdict::SingleCommit => {
+            let plan = findings.plan.as_ref().expect("a single commit has a plan");
+            let [one] = plan.candidates.as_slice() else {
+                unreachable!("a single-commit plan has one candidate");
+            };
+            writeln!(
+                s,
+                "The range is the single commit {}, so it is blamed without \
+                 bisecting.{}\n",
+                markdown::commit_link(&one.commit, &one.subject),
+                workflow_link(workflow_run)
+            )
+            .unwrap();
+            // The range is already `one`'s parent to `one`, so the default
+            // reproduce section fits.
+            return Some(Bisection {
+                title: Some(commit_title(one)),
+                section: s,
+                reproduce: None,
+            });
+        }
         Verdict::Confirmed => {}
     }
     let plan = findings
@@ -617,10 +667,7 @@ pub fn bisection(findings: &Findings, workflow_run: Option<&str>) -> Option<Bise
 
     let title = match blamed.as_slice() {
         [] => None,
-        [one] => Some(match pr_number(&one.subject) {
-            Some(pr) => format!("{} ({pr})", short(&one.commit)),
-            None => short(&one.commit).to_string(),
-        }),
+        [one] => Some(commit_title(one)),
         many => Some(format!("{} commits", many.len())),
     };
     let reproduce = match blamed.as_slice() {
@@ -688,6 +735,14 @@ fn attribution_table(s: &mut String, findings: &Findings, plan: &Plan) {
     }
 }
 
+/// The issue title's name for one blamed commit, e.g. `0123456789ab (#15208)`.
+fn commit_title(c: &Candidate) -> String {
+    match pr_number(&c.subject) {
+        Some(pr) => format!("{} ({pr})", short(&c.commit)),
+        None => short(&c.commit).to_string(),
+    }
+}
+
 /// ` See the [bisect](url).`, or nothing.
 fn workflow_link(url: Option<&str>) -> String {
     match url {
@@ -707,6 +762,9 @@ fn pr_number(subject: &str) -> Option<&str> {
 fn summary(report: &Report, findings: &Findings) -> String {
     let mut s = format!("## Bisect: run {} vs. {}\n\n", report.run, report.baseline);
     let outcome = match &findings.verdict {
+        Verdict::SingleCommit => {
+            "The range is a single commit: filing the issue without bisecting.".to_string()
+        }
         Verdict::Confirmed => "Confirmed: filing the issue.".to_string(),
         Verdict::Unconfirmed => "Unconfirmed detection: no commit reproduced the regression, so \
              nothing is filed."
@@ -1040,6 +1098,29 @@ mod tests {
         assert_eq!(findings.verdict, Verdict::Unconfirmed);
         assert_eq!(render(&report, &findings), "");
         assert_snapshot("bisect/noise-summary.md", &summary(&report, &findings));
+    }
+
+    #[test]
+    fn single_commit_files_without_measuring() {
+        let report = fixture_report();
+        let plan = plan(&DataDir::new(&fixtures()), &report, &FakeGit(1)).unwrap();
+        assert!(!plan.measures());
+        assert_eq!(plan.matrix(), serde_json::json!({ "include": [] }));
+
+        // No results at all.
+        let tmp = tempfile::tempdir().unwrap();
+        let findings = findings(&config(), &report, Some(plan), tmp.path()).unwrap();
+        assert_eq!(findings.verdict, Verdict::SingleCommit);
+        let issue = render(&report, &findings);
+        assert!(
+            issue.starts_with(&format!(
+                "Performance regression in {} (#15200) (are-we-fast-yet run 00003)\n",
+                short(&candidate(0).commit)
+            )),
+            "{issue}"
+        );
+        assert_snapshot("bisect/single.md", &issue);
+        assert_snapshot("bisect/single-summary.md", &summary(&report, &findings));
     }
 
     #[test]

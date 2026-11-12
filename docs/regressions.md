@@ -77,6 +77,10 @@ that confirms.
   and for a regressed Geomean, every benchmark the run measured, in that phase
   only. `awfy run --pair` passes Sightglass `--benchmark-phase`, so the other
   phases are never measured.
+* **Single commit.** A range of one commit has nothing to bisect: that
+  commit made the whole change. The plan's matrix is empty, nothing is
+  measured, and the report blames the commit outright, so the main run's
+  detection is filed unchecked.
 * **Measure.** Each job builds the candidate and its parent and measures both
   on the same runner, at `[bisect] iterations` each, so host effects cancel.
   Two iterations suffice: the main run already found the regression
@@ -93,6 +97,7 @@ that confirms.
 
 | Outcome | Action |
 |---|---|
+| The range is a single commit | File the issue, naming that commit |
 | A pair is confirmed | File the issue, naming the blamed commits and each one's share |
 | Every candidate was measured and no pair is confirmed | File nothing; the job summary reports an unconfirmed detection |
 | No plan, nothing measured, or unmeasured candidates and no confirmation | File the range issue, so a real regression is never lost |
